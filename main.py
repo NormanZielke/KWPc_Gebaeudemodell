@@ -42,8 +42,29 @@ HN_gdf_mixed = HN_gdf[
     HN_gdf["NutzungArt"].isin(mixed_use)
 ].copy()
 
+print(HN_gdf_mixed["NutzungArt"].unique())
+
 HN_gdf_Hotel = HN_gdf_check.iloc[25,:]
 
-#HN_gdf_mixed = HN_gdf_mixed[cols]
+HN_gdf_mixed = HN_gdf_mixed[cols]
 
-print(gdf_check.head())
+wohn_kategorien = [
+    "Wohnhaus",
+    "Wohngebäude",
+    "Wohnheim",
+    "Wochenendhaus",
+    "Wohn- und Geschäftsgebäude",
+    "Wohngebäude mit Gemeinbedarf",
+    "Wohngebäude mit Gewerbe und Industrie",
+    "Wohngebäude mit Handel und Dienstleistungen",
+    "Gebäude für Gewerbe und Industrie mit Wohnen",
+    "Gebäude für Handel und Dienstleistung mit Wohnen",
+]
+
+HN_gdf_nicht_wohnen = HN_gdf[
+    ~HN_gdf["NutzungArt"].isin(wohn_kategorien)
+].copy()
+
+print(len(HN_gdf_nicht_wohnen))
+
+print(HN_gdf_check.head())
