@@ -1,0 +1,4 @@
+Gesamtwärmebedarf normiertes Profil (42 kW): 21,936.6 kWh
+Gesamtwärmebedarf spezifisches Profil: 26,071.5 kWh
+Differenz: 4,134.9 kWh
+Relative Abweichung: 15.86 %
