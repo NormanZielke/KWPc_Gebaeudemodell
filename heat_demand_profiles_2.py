@@ -349,10 +349,10 @@ def compare_heat_profiles(
 
 data_path = Path("nPro/ID_25")
 
-file_normalized = data_path / "Hotel_1m2_1kW.csv"
-file_specific = data_path / "Hotel_225m2_42kW_26072kWh.csv"
+file_normalized = data_path / "Hotel_225m2_42kW_26072kWh_normiert.csv"
+file_specific = data_path / "Hotel_816m2_14kW_23647kWh.csv"
 
 compare_heat_profiles(
     file_normalized,
     file_specific,
-    42)
+    14)

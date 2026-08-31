@@ -1,9 +1,9 @@
-Spitzenlast: 42.00 kW
+Spitzenlast: 14.00 kW
 
-Gesamtwärmebedarf normiertes Profil (42 kW): 21,936.6 kWh
+Gesamtwärmebedarf normiertes Profil (14 kW): 8,795.2 kWh
 
-Gesamtwärmebedarf spezifisches Profil: 26,071.5 kWh
+Gesamtwärmebedarf spezifisches Profil: 23,611.2 kWh
 
-Differenz: 4,134.9 kWh
+Differenz: 14,816.0 kWh
 
-Relative Abweichung: 15.86 %
+Relative Abweichung: 62.75 %

@@ -974,4 +974,12 @@ data = check_dataframe(
     cols
 )
 
+gdf_nicht_wohnen = data["gdf_nicht_wohnen"]
+
+gdf_hotel = gdf_nicht_wohnen[
+    gdf_nicht_wohnen["NutzungArt"] == "Hotel, Motel, Pension"
+].copy()
+
+print("check")
+
 print("DEBUG")
