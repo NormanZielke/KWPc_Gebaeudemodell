@@ -6,6 +6,12 @@ import pandas as pd
 
 UNDECIDED = "muss fachlich entschieden werden"
 
+DEFAULT_GPKG_PATH = (
+    "1_Rohdaten/HN/HN-Gebäudemodell/"
+    "HN-Gebäudemodell_04_08_2026/"
+    "260728_Gebäudemodell_HohenNeuendorf.gpkg"
+)
+
 # nPro-Gebäudetypen, die wir in diesem Mapping verwenden.
 # Wichtig: Die Werte in 'NutzungArt' wurden exakt so übernommen,
 # wie sie im GeoPackage vorliegen. Die Zeichen '�' daher NICHT ersetzen,
@@ -167,6 +173,7 @@ def create_npro_type_mapping(
         Mapping-Tabelle mit den Spalten:
         - Gebäudetyp - gdf   (Quelle: NutzungArt)
         - Funktion - gdf     (Quelle: funktion)
+        - Anzahl - gdf       (Anzahl dieser Kombination im GeoDataFrame)
         - npro_type
     """
     gpkg_path = Path(gpkg_path)
@@ -186,16 +193,18 @@ def create_npro_type_mapping(
         )
 
     # Neue Tabelle erzeugen; das GeoDataFrame selbst bleibt unverändert.
+    # Eine Zeile entspricht einer eindeutigen Kombination aus NutzungArt und
+    # funktion. Zusätzlich wird gezählt, wie oft diese Kombination im GDF vorkommt.
     mapping_df = (
-        gdf[["NutzungArt", "funktion"]]
-        .drop_duplicates()
+        gdf.groupby(["NutzungArt", "funktion"], dropna=False)
+        .size()
+        .reset_index(name="Anzahl - gdf")
         .rename(
             columns={
                 "NutzungArt": "Gebäudetyp - gdf",
                 "funktion": "Funktion - gdf",
             }
         )
-        .copy()
     )
 
     mapping_df["npro_type"] = mapping_df.apply(
@@ -212,9 +221,9 @@ def create_npro_type_mapping(
     if invalid_types:
         raise ValueError(f"Ungültige nPro-Typen im Mapping: {sorted(invalid_types)}")
 
-    # Nur die vom Nutzer gewünschten drei Spalten ausgeben.
+    # Gewünschte Spaltenreihenfolge.
     mapping_df = mapping_df[
-        ["Gebäudetyp - gdf", "Funktion - gdf", "npro_type"]
+        ["Gebäudetyp - gdf", "Funktion - gdf", "Anzahl - gdf", "npro_type"]
     ].reset_index(drop=True)
 
     # Excel-Ausgabe.
@@ -225,13 +234,7 @@ def create_npro_type_mapping(
 
 
 if __name__ == "__main__":
-    path = (
-        "1_Rohdaten/HN/HN-Gebäudemodell/"
-        "HN-Gebäudemodell_04_08_2026/"
-        "260728_Gebäudemodell_HohenNeuendorf.gpkg"
-    )
-
-    GPKG_PATH = path
+    GPKG_PATH = DEFAULT_GPKG_PATH
     EXCEL_PATH = "npro_type_mapping.xlsx"
 
     df_mapping = create_npro_type_mapping(
