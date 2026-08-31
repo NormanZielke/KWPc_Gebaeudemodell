@@ -1,0 +1,216 @@
+CHECK GEBÄUDEMODELL
+================================================================================
+
+Quelldatei:
+1_Rohdaten/HN/HN-Gebäudemodell/HN-Gebäudemodell_04_08_2026/260728_Gebäudemodell_HohenNeuendorf.gpkg
+
+1. GEBÄUDESTATISTIK
+--------------------------------------------------------------------------------
+
+Gesamtzahl Gebäude: 11829
+
+Gebäude mit NutzungArt: 9550
+Anteil an Gesamtgebäuden: 80.73 %
+
+Gebäude mit Funktion: 2279
+Anteil an Gesamtgebäuden: 19.27 %
+
+Gebäude mit Wohn-Kategorie: 8960
+Anteil an Gesamtgebäuden: 75.75 %
+Anteil an Gebäuden mit NutzungArt: 93.82 %
+
+Gebäude mit Nicht-Wohn-Kategorie: 590
+Anteil an Gesamtgebäuden: 4.99 %
+Anteil an Gebäuden mit NutzungArt: 6.18 %
+
+Gebäude mit Mixed-Use-Kategorie: 97
+Anteil an Gesamtgebäuden: 0.82 %
+Anteil an Gebäuden mit NutzungArt: 1.02 %
+
+
+2. PRÜFUNG FUNKTION / NUTZUNGART
+--------------------------------------------------------------------------------
+
+Gebäude mit genau einem Eintrag (funktion ODER NutzungArt): 11829
+Gebäude mit Eintrag in beiden Spalten: 0
+Gebäude ohne Eintrag in beiden Spalten: 0
+
+Aussage:
+'Jedes Gebäude hat entweder funktion oder NutzungArt, aber nicht beides.'
+Ergebnis: True
+
+
+3. GEGENCHECK WOHNEN / NICHT-WOHNEN
+--------------------------------------------------------------------------------
+
+Gebäude mit Wohn-Kategorie: 8960
+Gebäude mit Nicht-Wohn-Kategorie: 590
+Summe Wohnen + Nicht-Wohnen: 9550
+Gesamtzahl Gebäude mit NutzungArt: 9550
+
+Prüfung:
+Wohnen + Nicht-Wohnen == Gebäude mit NutzungArt
+Ergebnis: True
+
+Prüfung Kategorienlisten:
+Wohn-Kategorien + Nicht-Wohn-Kategorien decken alle vorhandenen NutzungArt-Kategorien ab:
+Ergebnis: True
+
+Keine Überschneidung zwischen Wohn- und Nicht-Wohn-Kategorien:
+Ergebnis: True
+
+Mixed-Use-Kategorien sind vollständig in den Wohn-Kategorien enthalten:
+Ergebnis: True
+
+Summe Gebäude aus allen einzelnen NutzungArt-Kategorien:
+9550
+Gesamtzahl Gebäude mit NutzungArt:
+9550
+Ergebnis: True
+
+
+4. KATEGORIEN
+================================================================================
+
+Alle vorhandenen NutzungArt-Kategorien:
+--------------------------------------------------------------------------------
+- Allgemein bildende Schule
+- Betriebsgeb�ude
+- B�rogeb�ude
+- Empfangsgeb�ude
+- Feuerwehr
+- Forschungsinstitut
+- Freizeit- und Vergn�gungsst�tte
+- Gastst�tte, Restaurant
+- Geb�ude f�r Beherbergung
+- Geb�ude f�r Bewirtung
+- Geb�ude f�r Bildung und Forschung
+- Geb�ude f�r Gesundheitswesen
+- Geb�ude f�r Gewerbe und Industrie mit Wohnen
+- Geb�ude f�r Handel und Dienstleistung mit Wohnen
+- Geb�ude f�r Handel und Dienstleistungen
+- Geb�ude f�r Sicherheit und Ordnung
+- Geb�ude f�r Wirtschaft oder Gewerbe
+- Geb�ude f�r betriebliche Sozialeinrichtung
+- Geb�ude f�r kulturelle Zwecke
+- Geb�ude f�r soziale Zwecke
+- Geb�ude f�r �ffentliche Zwecke
+- Gesch�ftsgeb�ude
+- Hotel, Motel, Pension
+- Kaufhaus
+- Kinderkrippe, Kindergarten, Kindertagesst�tte
+- Kreditinstitut
+- Polizei
+- Produktionsgeb�ude
+- Rathaus
+- Verwaltungsgeb�ude
+- Wochenendhaus
+- Wohn- und Gesch�ftsgeb�ude
+- Wohngeb�ude
+- Wohngeb�ude mit Gemeinbedarf
+- Wohngeb�ude mit Gewerbe und Industrie
+- Wohngeb�ude mit Handel und Dienstleistungen
+- Wohnhaus
+- Wohnheim
+- �rztehaus, Poliklinik
+
+
+Wohn-Kategorien:
+--------------------------------------------------------------------------------
+- Wohnhaus
+- Wohngeb�ude
+- Wohnheim
+- Wochenendhaus
+- Wohn- und Gesch�ftsgeb�ude
+- Wohngeb�ude mit Gemeinbedarf
+- Wohngeb�ude mit Gewerbe und Industrie
+- Wohngeb�ude mit Handel und Dienstleistungen
+- Geb�ude f�r Gewerbe und Industrie mit Wohnen
+- Geb�ude f�r Handel und Dienstleistung mit Wohnen
+
+
+Mixed-Use-Kategorien:
+--------------------------------------------------------------------------------
+- Geb�ude f�r Handel und Dienstleistung mit Wohnen
+- Geb�ude f�r Gewerbe und Industrie mit Wohnen
+- Wohngeb�ude mit Gewerbe und Industrie
+- Wohngeb�ude mit Handel und Dienstleistungen
+- Wohn- und Gesch�ftsgeb�ude
+- Wohngeb�ude mit Gemeinbedarf
+
+
+Nicht-Wohn-Kategorien:
+--------------------------------------------------------------------------------
+- Allgemein bildende Schule
+- Betriebsgeb�ude
+- B�rogeb�ude
+- Empfangsgeb�ude
+- Feuerwehr
+- Forschungsinstitut
+- Freizeit- und Vergn�gungsst�tte
+- Gastst�tte, Restaurant
+- Geb�ude f�r Beherbergung
+- Geb�ude f�r Bewirtung
+- Geb�ude f�r Bildung und Forschung
+- Geb�ude f�r Gesundheitswesen
+- Geb�ude f�r Handel und Dienstleistungen
+- Geb�ude f�r Sicherheit und Ordnung
+- Geb�ude f�r Wirtschaft oder Gewerbe
+- Geb�ude f�r betriebliche Sozialeinrichtung
+- Geb�ude f�r kulturelle Zwecke
+- Geb�ude f�r soziale Zwecke
+- Geb�ude f�r �ffentliche Zwecke
+- Gesch�ftsgeb�ude
+- Hotel, Motel, Pension
+- Kaufhaus
+- Kinderkrippe, Kindergarten, Kindertagesst�tte
+- Kreditinstitut
+- Polizei
+- Produktionsgeb�ude
+- Rathaus
+- Verwaltungsgeb�ude
+- �rztehaus, Poliklinik
+
+
+5. ANZAHL GEBÄUDE JE NUTZUNGART
+================================================================================
+
+- Allgemein bildende Schule: 13
+- Betriebsgeb�ude: 10
+- B�rogeb�ude: 17
+- Empfangsgeb�ude: 1
+- Feuerwehr: 5
+- Forschungsinstitut: 4
+- Freizeit- und Vergn�gungsst�tte: 2
+- Gastst�tte, Restaurant: 6
+- Geb�ude f�r Beherbergung: 1
+- Geb�ude f�r Bewirtung: 3
+- Geb�ude f�r Bildung und Forschung: 6
+- Geb�ude f�r Gesundheitswesen: 7
+- Geb�ude f�r Gewerbe und Industrie mit Wohnen: 2
+- Geb�ude f�r Handel und Dienstleistung mit Wohnen: 9
+- Geb�ude f�r Handel und Dienstleistungen: 55
+- Geb�ude f�r Sicherheit und Ordnung: 2
+- Geb�ude f�r Wirtschaft oder Gewerbe: 329
+- Geb�ude f�r betriebliche Sozialeinrichtung: 1
+- Geb�ude f�r kulturelle Zwecke: 1
+- Geb�ude f�r soziale Zwecke: 28
+- Geb�ude f�r �ffentliche Zwecke: 8
+- Gesch�ftsgeb�ude: 13
+- Hotel, Motel, Pension: 3
+- Kaufhaus: 1
+- Kinderkrippe, Kindergarten, Kindertagesst�tte: 13
+- Kreditinstitut: 1
+- Polizei: 1
+- Produktionsgeb�ude: 50
+- Rathaus: 4
+- Verwaltungsgeb�ude: 4
+- Wochenendhaus: 36
+- Wohn- und Gesch�ftsgeb�ude: 2
+- Wohngeb�ude: 16
+- Wohngeb�ude mit Gemeinbedarf: 2
+- Wohngeb�ude mit Gewerbe und Industrie: 13
+- Wohngeb�ude mit Handel und Dienstleistungen: 69
+- Wohnhaus: 8800
+- Wohnheim: 11
+- �rztehaus, Poliklinik: 1

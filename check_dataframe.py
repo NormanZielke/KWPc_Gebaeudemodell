@@ -1,88 +1,977 @@
-from dataclasses import dataclass
+from pathlib import Path
+
 import geopandas as gpd
 
 
-@dataclass
-class BuildingModelCheck:
-    gdf: gpd.GeoDataFrame
-    gdf_funktion: gpd.GeoDataFrame
-    gdf_check: gpd.GeoDataFrame
-    gdf_funktion_check: gpd.GeoDataFrame
-    nutzungarten: object
-    gdf_mixed: gpd.GeoDataFrame
-    gdf_nicht_wohnen: gpd.GeoDataFrame
-    Nutzungsarten_nicht_wohnen: object
+def check_dataframe(path, cols):
 
+    # ==========================================================
+    # 1. Gebäudemodell laden
+    # ==========================================================
 
-def check_dataframe(path):
-
+    # Vollständiger Rohdatensatz
+    # -> bleibt mit ALLEN Spalten erhalten
     gdf = gpd.read_file(path)
 
-    gdf_funktion = gdf[
-        gdf["funktion"].notna()
-    ].copy()
+    # ----------------------------------------------------------
+    # Prüfen, ob benötigte Spalten vorhanden sind
+    # ----------------------------------------------------------
 
-    cols = [
-        "GebaeudeID",
-        "GebTyp",
+    required_cols = [
         "NutzungArt",
-        "Waermebed_",
-        "P_th",
-        "nutzflaeche_korr",
-        "AnzlWhg",
+        "funktion",
     ]
 
-    gdf_check = gdf[cols].copy()
-    gdf_funktion_check = gdf_funktion[cols].copy()
+    missing_required = [
+        col for col in required_cols
+        if col not in gdf.columns
+    ]
 
-    nutzungarten = gdf["NutzungArt"].unique()
+    if missing_required:
+        raise KeyError(
+            f"Folgende benötigte Spalten fehlen im Gebäudemodell: "
+            f"{missing_required}"
+        )
+
+    missing_check_cols = [
+        col for col in cols
+        if col not in gdf.columns
+    ]
+
+    if missing_check_cols:
+        raise KeyError(
+            f"Folgende in 'cols' angegebene Spalten fehlen: "
+            f"{missing_check_cols}"
+        )
+
+    # ==========================================================
+    # 2. Hilfsfunktion:
+    #    Prüfen, ob tatsächlich ein Eintrag vorhanden ist
+    # ==========================================================
+
+    def has_entry(series):
+        """
+        True, wenn ein Wert vorhanden ist.
+
+        Berücksichtigt:
+        - NaN
+        - None
+        - ""
+        - Strings nur aus Leerzeichen
+        """
+
+        return (
+            series.notna()
+            & series.astype(str).str.strip().ne("")
+        )
+
+    # ==========================================================
+    # 3. Kategorien definieren
+    #
+    # WICHTIG:
+    # Die Strings entsprechen EXAKT den Werten im DataFrame.
+    # Die Zeichen wie "�" werden NICHT korrigiert.
+    # ==========================================================
+
+    # ----------------------------------------------------------
+    # Mixed-Use-Kategorien
+    # ----------------------------------------------------------
 
     mixed_use = [
-        "Gebäude für Handel und Dienstleistung mit Wohnen",
-        "Gebäude für Gewerbe und Industrie mit Wohnen",
-        "Wohngebäude mit Gewerbe und Industrie",
-        "Wohngebäude mit Handel und Dienstleistungen",
-        "Wohn- und Geschäftsgebäude",
-        "Wohngebäude mit Gemeinbedarf",
+        "Geb�ude f�r Handel und Dienstleistung mit Wohnen",
+        "Geb�ude f�r Gewerbe und Industrie mit Wohnen",
+        "Wohngeb�ude mit Gewerbe und Industrie",
+        "Wohngeb�ude mit Handel und Dienstleistungen",
+        "Wohn- und Gesch�ftsgeb�ude",
+        "Wohngeb�ude mit Gemeinbedarf",
     ]
 
-    gdf_mixed = gdf[
-        gdf["NutzungArt"].isin(mixed_use)
-    ].copy()
+    # ----------------------------------------------------------
+    # Wohn-Kategorien
+    # ----------------------------------------------------------
 
     wohn_kategorien = [
         "Wohnhaus",
-        "Wohngebäude",
+        "Wohngeb�ude",
         "Wohnheim",
         "Wochenendhaus",
-        "Wohn- und Geschäftsgebäude",
-        "Wohngebäude mit Gemeinbedarf",
-        "Wohngebäude mit Gewerbe und Industrie",
-        "Wohngebäude mit Handel und Dienstleistungen",
-        "Gebäude für Gewerbe und Industrie mit Wohnen",
-        "Gebäude für Handel und Dienstleistung mit Wohnen",
+        "Wohn- und Gesch�ftsgeb�ude",
+        "Wohngeb�ude mit Gemeinbedarf",
+        "Wohngeb�ude mit Gewerbe und Industrie",
+        "Wohngeb�ude mit Handel und Dienstleistungen",
+        "Geb�ude f�r Gewerbe und Industrie mit Wohnen",
+        "Geb�ude f�r Handel und Dienstleistung mit Wohnen",
     ]
 
-    gdf_nicht_wohnen = gdf[
-        ~gdf["NutzungArt"].isin(wohn_kategorien)
-    ].copy()
+    # ==========================================================
+    # 4. Grundlegende Masken
+    # ==========================================================
 
-    Nutzungsarten_nicht_wohnen = gdf_nicht_wohnen["NutzungArt"].unique()
-
-    return BuildingModelCheck(
-        gdf=gdf,
-        gdf_funktion=gdf_funktion,
-        gdf_check=gdf_check,
-        gdf_funktion_check=gdf_funktion_check,
-        nutzungarten=nutzungarten,
-        gdf_mixed=gdf_mixed,
-        gdf_nicht_wohnen=gdf_nicht_wohnen,
-        Nutzungsarten_nicht_wohnen = Nutzungsarten_nicht_wohnen,
+    has_nutzungart = has_entry(
+        gdf["NutzungArt"]
     )
 
+    has_funktion = has_entry(
+        gdf["funktion"]
+    )
 
-path = "1_Rohdaten/HN/HN-Gebäudemodell/HN-Gebäudemodell_04_08_2026/260728_Gebäudemodell_HohenNeuendorf.gpkg"
+    # ==========================================================
+    # 5. Alle tatsächlich vorhandenen NutzungArt-Kategorien
+    # ==========================================================
 
-data = check_dataframe(path)
+    nutzungart_kategorien = sorted(
+        gdf.loc[
+            has_nutzungart,
+            "NutzungArt"
+        ]
+        .unique()
+        .tolist()
+    )
+
+    # ==========================================================
+    # 6. Nicht-Wohn-Kategorien automatisch bestimmen
+    #
+    # Alle vorhandenen NutzungArt-Kategorien,
+    # die NICHT in wohn_kategorien enthalten sind.
+    # ==========================================================
+
+    nicht_wohn_kategorien = sorted(
+        [
+            category
+            for category in nutzungart_kategorien
+            if category not in wohn_kategorien
+        ]
+    )
+
+    # ==========================================================
+    # 7. Gebäudemasken
+    # ==========================================================
+
+    # Gebäude mit Wohn-Kategorie
+    is_wohnen = (
+        has_nutzungart
+        & gdf["NutzungArt"].isin(
+            wohn_kategorien
+        )
+    )
+
+    # Gebäude mit Nicht-Wohn-Kategorie
+    is_nicht_wohnen = (
+        has_nutzungart
+        & gdf["NutzungArt"].isin(
+            nicht_wohn_kategorien
+        )
+    )
+
+    # Gebäude mit Mixed-Use-Kategorie
+    is_mixed = (
+        has_nutzungart
+        & gdf["NutzungArt"].isin(
+            mixed_use
+        )
+    )
+
+    # ==========================================================
+    # 8. DataFrames zum Prüfen
+    #
+    # gdf bleibt vollständig.
+    #
+    # Alle folgenden DataFrames werden auf die in "cols"
+    # angegebenen Spalten reduziert.
+    # ==========================================================
+
+    # Gesamter Datensatz mit Prüfspalten
+    gdf_check = gdf.loc[
+        :,
+        cols
+    ].copy()
+
+    # Gebäude mit NutzungArt
+    gdf_nutzungart = gdf.loc[
+        has_nutzungart,
+        cols
+    ].copy()
+
+    # Gebäude mit Funktion
+    gdf_funktion = gdf.loc[
+        has_funktion,
+        cols
+    ].copy()
+
+    # Wohngebäude
+    gdf_wohnen = gdf.loc[
+        is_wohnen,
+        cols
+    ].copy()
+
+    # Nicht-Wohngebäude
+    gdf_nicht_wohnen = gdf.loc[
+        is_nicht_wohnen,
+        cols
+    ].copy()
+
+    # Mixed-Use-Gebäude
+    gdf_mixed = gdf.loc[
+        is_mixed,
+        cols
+    ].copy()
+
+    # ==========================================================
+    # 9. Prüfung funktion / NutzungArt
+    # ==========================================================
+
+    # Beide Spalten sind befüllt
+    mask_both = (
+        has_funktion
+        & has_nutzungart
+    )
+
+    gdf_both = gdf.loc[
+        mask_both,
+        cols
+    ].copy()
+
+    # Beide Spalten sind leer
+    mask_neither = (
+        ~has_funktion
+        & ~has_nutzungart
+    )
+
+    gdf_neither = gdf.loc[
+        mask_neither,
+        cols
+    ].copy()
+
+    # Genau eine der beiden Spalten ist befüllt
+    mask_either = (
+        has_funktion
+        ^ has_nutzungart
+    )
+
+    gdf_either = gdf.loc[
+        mask_either,
+        cols
+    ].copy()
+
+    # Prüfen, ob diese Aussage für ALLE Gebäude gilt
+    funktion_nutzungart_exklusiv = bool(
+        mask_either.all()
+    )
+
+    # ==========================================================
+    # 10. Anzahl Gebäude
+    # ==========================================================
+
+    n_gesamt = len(gdf)
+
+    n_nutzungart = int(
+        has_nutzungart.sum()
+    )
+
+    n_funktion = int(
+        has_funktion.sum()
+    )
+
+    n_wohnen = int(
+        is_wohnen.sum()
+    )
+
+    n_nicht_wohnen = int(
+        is_nicht_wohnen.sum()
+    )
+
+    n_mixed = int(
+        is_mixed.sum()
+    )
+
+    n_both = int(
+        mask_both.sum()
+    )
+
+    n_neither = int(
+        mask_neither.sum()
+    )
+
+    n_either = int(
+        mask_either.sum()
+    )
+
+    # ==========================================================
+    # 11. Gegencheck:
+    #
+    # Wohnen + Nicht-Wohnen muss ALLE Gebäude mit NutzungArt
+    # ergeben.
+    # ==========================================================
+
+    n_wohnen_plus_nicht_wohnen = (
+        n_wohnen
+        + n_nicht_wohnen
+    )
+
+    check_anzahl_nutzungart = (
+        n_wohnen_plus_nicht_wohnen
+        == n_nutzungart
+    )
+
+    # ==========================================================
+    # 12. Zusätzlicher Kategorien-Gegencheck
+    #
+    # Prüfen, ob die aufgelisteten Wohn- und Nicht-Wohn-
+    # Kategorien zusammen exakt alle vorhandenen
+    # NutzungArt-Kategorien ergeben.
+    # ==========================================================
+
+    set_nutzungart = set(
+        nutzungart_kategorien
+    )
+
+    set_wohnen = set(
+        wohn_kategorien
+    )
+
+    set_nicht_wohnen = set(
+        nicht_wohn_kategorien
+    )
+
+    # Nur Wohnkategorien betrachten,
+    # die im Datensatz tatsächlich vorkommen
+    set_wohnen_vorhanden = (
+        set_wohnen
+        & set_nutzungart
+    )
+
+    # Vereinigung beider Kategoriengruppen
+    set_kategorien_gesamt = (
+        set_wohnen_vorhanden
+        | set_nicht_wohnen
+    )
+
+    check_kategorien_vollstaendig = (
+        set_kategorien_gesamt
+        == set_nutzungart
+    )
+
+    # Prüfen, ob eine Kategorie gleichzeitig
+    # Wohnen UND Nicht-Wohnen ist
+    kategorien_ueberschneidung = (
+        set_wohnen_vorhanden
+        & set_nicht_wohnen
+    )
+
+    check_kategorien_keine_ueberschneidung = (
+        len(kategorien_ueberschneidung)
+        == 0
+    )
+
+    # ==========================================================
+    # 13. Mixed-Use-Gegencheck
+    #
+    # Mixed Use soll Teil der Wohnkategorien sein.
+    # ==========================================================
+
+    mixed_use_nicht_in_wohnen = [
+        category
+        for category in mixed_use
+        if category not in wohn_kategorien
+    ]
+
+    check_mixed_use_in_wohnen = (
+        len(mixed_use_nicht_in_wohnen)
+        == 0
+    )
+
+    # ==========================================================
+    # 14. Anzahl Gebäude je NutzungArt-Kategorie
+    # ==========================================================
+
+    nutzungart_counts = (
+        gdf.loc[
+            has_nutzungart,
+            "NutzungArt"
+        ]
+        .value_counts()
+        .sort_index()
+    )
+
+    # Summe aller einzelnen Kategorien
+    n_nutzungart_aus_kategorien = int(
+        nutzungart_counts.sum()
+    )
+
+    check_summe_einzelkategorien = (
+        n_nutzungart_aus_kategorien
+        == n_nutzungart
+    )
+
+    # ==========================================================
+    # 15. Prozent-Hilfsfunktion
+    # ==========================================================
+
+    def prozent(anzahl, gesamt):
+
+        if gesamt == 0:
+            return 0.0
+
+        return (
+            anzahl
+            / gesamt
+            * 100
+        )
+
+    # ==========================================================
+    # 16. Textbericht speichern
+    # ==========================================================
+
+    report_path = Path(path).with_name(
+        Path(path).stem
+        + "_dataframe_check.txt"
+    )
+
+    with open(
+        report_path,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        # ======================================================
+        # Überschrift
+        # ======================================================
+
+        file.write(
+            "CHECK GEBÄUDEMODELL\n"
+        )
+
+        file.write(
+            "=" * 80
+            + "\n\n"
+        )
+
+        file.write(
+            f"Quelldatei:\n"
+            f"{path}\n\n"
+        )
+
+        # ======================================================
+        # 1. Gebäudestatistik
+        # ======================================================
+
+        file.write(
+            "1. GEBÄUDESTATISTIK\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
+        )
+
+        file.write(
+            f"Gesamtzahl Gebäude: "
+            f"{n_gesamt}\n\n"
+        )
+
+        # ------------------------------------------------------
+        # NutzungArt
+        # ------------------------------------------------------
+
+        file.write(
+            f"Gebäude mit NutzungArt: "
+            f"{n_nutzungart}\n"
+        )
+
+        file.write(
+            f"Anteil an Gesamtgebäuden: "
+            f"{prozent(n_nutzungart, n_gesamt):.2f} %\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Funktion
+        # ------------------------------------------------------
+
+        file.write(
+            f"Gebäude mit Funktion: "
+            f"{n_funktion}\n"
+        )
+
+        file.write(
+            f"Anteil an Gesamtgebäuden: "
+            f"{prozent(n_funktion, n_gesamt):.2f} %\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Wohnen
+        # ------------------------------------------------------
+
+        file.write(
+            f"Gebäude mit Wohn-Kategorie: "
+            f"{n_wohnen}\n"
+        )
+
+        file.write(
+            f"Anteil an Gesamtgebäuden: "
+            f"{prozent(n_wohnen, n_gesamt):.2f} %\n"
+        )
+
+        file.write(
+            f"Anteil an Gebäuden mit NutzungArt: "
+            f"{prozent(n_wohnen, n_nutzungart):.2f} %\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Nicht-Wohnen
+        # ------------------------------------------------------
+
+        file.write(
+            f"Gebäude mit Nicht-Wohn-Kategorie: "
+            f"{n_nicht_wohnen}\n"
+        )
+
+        file.write(
+            f"Anteil an Gesamtgebäuden: "
+            f"{prozent(n_nicht_wohnen, n_gesamt):.2f} %\n"
+        )
+
+        file.write(
+            f"Anteil an Gebäuden mit NutzungArt: "
+            f"{prozent(n_nicht_wohnen, n_nutzungart):.2f} %\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Mixed Use
+        # ------------------------------------------------------
+
+        file.write(
+            f"Gebäude mit Mixed-Use-Kategorie: "
+            f"{n_mixed}\n"
+        )
+
+        file.write(
+            f"Anteil an Gesamtgebäuden: "
+            f"{prozent(n_mixed, n_gesamt):.2f} %\n"
+        )
+
+        file.write(
+            f"Anteil an Gebäuden mit NutzungArt: "
+            f"{prozent(n_mixed, n_nutzungart):.2f} %\n\n"
+        )
+
+        # ======================================================
+        # 2. Prüfung funktion / NutzungArt
+        # ======================================================
+
+        file.write(
+            "\n2. PRÜFUNG FUNKTION / NUTZUNGART\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
+        )
+
+        file.write(
+            f"Gebäude mit genau einem Eintrag "
+            f"(funktion ODER NutzungArt): "
+            f"{n_either}\n"
+        )
+
+        file.write(
+            f"Gebäude mit Eintrag in beiden Spalten: "
+            f"{n_both}\n"
+        )
+
+        file.write(
+            f"Gebäude ohne Eintrag in beiden Spalten: "
+            f"{n_neither}\n\n"
+        )
+
+        file.write(
+            "Aussage:\n"
+            "'Jedes Gebäude hat entweder funktion oder "
+            "NutzungArt, aber nicht beides.'\n"
+        )
+
+        file.write(
+            f"Ergebnis: "
+            f"{funktion_nutzungart_exklusiv}\n"
+        )
+
+        # ======================================================
+        # 3. Gegencheck Wohn-/Nicht-Wohn-Kategorien
+        # ======================================================
+
+        file.write(
+            "\n\n3. GEGENCHECK WOHNEN / NICHT-WOHNEN\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
+        )
+
+        file.write(
+            f"Gebäude mit Wohn-Kategorie: "
+            f"{n_wohnen}\n"
+        )
+
+        file.write(
+            f"Gebäude mit Nicht-Wohn-Kategorie: "
+            f"{n_nicht_wohnen}\n"
+        )
+
+        file.write(
+            f"Summe Wohnen + Nicht-Wohnen: "
+            f"{n_wohnen_plus_nicht_wohnen}\n"
+        )
+
+        file.write(
+            f"Gesamtzahl Gebäude mit NutzungArt: "
+            f"{n_nutzungart}\n\n"
+        )
+
+        file.write(
+            "Prüfung:\n"
+            "Wohnen + Nicht-Wohnen "
+            "== Gebäude mit NutzungArt\n"
+        )
+
+        file.write(
+            f"Ergebnis: "
+            f"{check_anzahl_nutzungart}\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Kategoriencheck
+        # ------------------------------------------------------
+
+        file.write(
+            "Prüfung Kategorienlisten:\n"
+        )
+
+        file.write(
+            "Wohn-Kategorien + Nicht-Wohn-Kategorien "
+            "decken alle vorhandenen NutzungArt-Kategorien ab:\n"
+        )
+
+        file.write(
+            f"Ergebnis: "
+            f"{check_kategorien_vollstaendig}\n\n"
+        )
+
+        file.write(
+            "Keine Überschneidung zwischen "
+            "Wohn- und Nicht-Wohn-Kategorien:\n"
+        )
+
+        file.write(
+            f"Ergebnis: "
+            f"{check_kategorien_keine_ueberschneidung}\n"
+        )
+
+        if kategorien_ueberschneidung:
+
+            file.write(
+                "Überschneidende Kategorien:\n"
+            )
+
+            for category in sorted(
+                kategorien_ueberschneidung
+            ):
+
+                file.write(
+                    f"- {category}\n"
+                )
+
+        file.write(
+            "\nMixed-Use-Kategorien sind vollständig "
+            "in den Wohn-Kategorien enthalten:\n"
+        )
+
+        file.write(
+            f"Ergebnis: "
+            f"{check_mixed_use_in_wohnen}\n"
+        )
+
+        if mixed_use_nicht_in_wohnen:
+
+            file.write(
+                "Fehlende Mixed-Use-Kategorien:\n"
+            )
+
+            for category in mixed_use_nicht_in_wohnen:
+
+                file.write(
+                    f"- {category}\n"
+                )
+
+        # ------------------------------------------------------
+        # Summe Einzelkategorien
+        # ------------------------------------------------------
+
+        file.write(
+            "\nSumme Gebäude aus allen einzelnen "
+            "NutzungArt-Kategorien:\n"
+        )
+
+        file.write(
+            f"{n_nutzungart_aus_kategorien}\n"
+        )
+
+        file.write(
+            "Gesamtzahl Gebäude mit NutzungArt:\n"
+        )
+
+        file.write(
+            f"{n_nutzungart}\n"
+        )
+
+        file.write(
+            "Ergebnis: "
+            f"{check_summe_einzelkategorien}\n"
+        )
+
+        # ======================================================
+        # 4. Kategorien
+        # ======================================================
+
+        file.write(
+            "\n\n4. KATEGORIEN\n"
+        )
+
+        file.write(
+            "=" * 80
+            + "\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Alle NutzungArt-Kategorien
+        # ------------------------------------------------------
+
+        file.write(
+            "Alle vorhandenen NutzungArt-Kategorien:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
+        )
+
+        for category in nutzungart_kategorien:
+
+            file.write(
+                f"- {category}\n"
+            )
+
+        # ------------------------------------------------------
+        # Wohn-Kategorien
+        # ------------------------------------------------------
+
+        file.write(
+            "\n\nWohn-Kategorien:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
+        )
+
+        for category in wohn_kategorien:
+
+            file.write(
+                f"- {category}\n"
+            )
+
+        # ------------------------------------------------------
+        # Mixed-Use-Kategorien
+        # ------------------------------------------------------
+
+        file.write(
+            "\n\nMixed-Use-Kategorien:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
+        )
+
+        for category in mixed_use:
+
+            file.write(
+                f"- {category}\n"
+            )
+
+        # ------------------------------------------------------
+        # Nicht-Wohn-Kategorien
+        # ------------------------------------------------------
+
+        file.write(
+            "\n\nNicht-Wohn-Kategorien:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
+        )
+
+        for category in nicht_wohn_kategorien:
+
+            file.write(
+                f"- {category}\n"
+            )
+
+        # ======================================================
+        # 5. Anzahl Gebäude je NutzungArt
+        # ======================================================
+
+        file.write(
+            "\n\n5. ANZAHL GEBÄUDE JE NUTZUNGART\n"
+        )
+
+        file.write(
+            "=" * 80
+            + "\n\n"
+        )
+
+        for category, count in nutzungart_counts.items():
+
+            file.write(
+                f"- {category}: "
+                f"{count}\n"
+            )
+
+    # ==========================================================
+    # 17. Konsolenausgabe
+    # ==========================================================
+
+    print(
+        f"Check gespeichert unter:\n"
+        f"{report_path}"
+    )
+
+    print()
+
+    print(
+        "Gegencheck Wohnen + Nicht-Wohnen "
+        f"= NutzungArt: {check_anzahl_nutzungart}"
+    )
+
+    print(
+        "Kategorien vollständig: "
+        f"{check_kategorien_vollstaendig}"
+    )
+
+    print(
+        "Keine Überschneidung Wohnen/Nicht-Wohnen: "
+        f"{check_kategorien_keine_ueberschneidung}"
+    )
+
+    # ==========================================================
+    # 18. Rückgabe für Debug-Modus
+    # ==========================================================
+
+    return {
+
+        # ------------------------------------------------------
+        # vollständiger Rohdatensatz
+        # ------------------------------------------------------
+
+        "gdf": gdf,
+
+        # ------------------------------------------------------
+        # reduzierte Prüf-DataFrames
+        # ------------------------------------------------------
+
+        "gdf_check": gdf_check,
+        "gdf_nutzungart": gdf_nutzungart,
+        "gdf_funktion": gdf_funktion,
+        "gdf_wohnen": gdf_wohnen,
+        "gdf_nicht_wohnen": gdf_nicht_wohnen,
+        "gdf_mixed": gdf_mixed,
+
+        # ------------------------------------------------------
+        # funktion / NutzungArt
+        # ------------------------------------------------------
+
+        "gdf_both": gdf_both,
+        "gdf_neither": gdf_neither,
+        "gdf_either": gdf_either,
+
+        "funktion_nutzungart_exklusiv":
+            funktion_nutzungart_exklusiv,
+
+        # ------------------------------------------------------
+        # Kategorien
+        # ------------------------------------------------------
+
+        "nutzungart_kategorien":
+            nutzungart_kategorien,
+
+        "wohn_kategorien":
+            wohn_kategorien,
+
+        "mixed_use":
+            mixed_use,
+
+        "nicht_wohn_kategorien":
+            nicht_wohn_kategorien,
+
+        "nutzungart_counts":
+            nutzungart_counts,
+
+        # ------------------------------------------------------
+        # Gegenchecks
+        # ------------------------------------------------------
+
+        "check_anzahl_nutzungart":
+            check_anzahl_nutzungart,
+
+        "check_kategorien_vollstaendig":
+            check_kategorien_vollstaendig,
+
+        "check_kategorien_keine_ueberschneidung":
+            check_kategorien_keine_ueberschneidung,
+
+        "check_mixed_use_in_wohnen":
+            check_mixed_use_in_wohnen,
+
+        "check_summe_einzelkategorien":
+            check_summe_einzelkategorien,
+
+        # ------------------------------------------------------
+        # Bericht
+        # ------------------------------------------------------
+
+        "report_path":
+            report_path,
+    }
+
+
+# ==============================================================
+# Einstellungen
+# ==============================================================
+
+path = (
+    "1_Rohdaten/HN/HN-Gebäudemodell/"
+    "HN-Gebäudemodell_04_08_2026/"
+    "260728_Gebäudemodell_HohenNeuendorf.gpkg"
+)
+
+cols = [
+    "GebaeudeID",
+    "GebTyp",
+    "NutzungArt",
+    "Waermebed_",
+    "P_th",
+    "nutzflaeche_korr",
+    "AnzlWhg",
+]
+
+
+# ==============================================================
+# Gebäudemodell prüfen
+# ==============================================================
+
+data = check_dataframe(
+    path,
+    cols
+)
 
 print("DEBUG")
