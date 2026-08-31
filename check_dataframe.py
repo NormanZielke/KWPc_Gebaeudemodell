@@ -116,13 +116,30 @@ def check_dataframe(path, cols):
     )
 
     # ==========================================================
-    # 5. Alle tatsächlich vorhandenen NutzungArt-Kategorien
+    # 5. Alle tatsächlich vorhandenen Kategorien
     # ==========================================================
+
+    # ----------------------------------------------------------
+    # NutzungArt
+    # ----------------------------------------------------------
 
     nutzungart_kategorien = sorted(
         gdf.loc[
             has_nutzungart,
             "NutzungArt"
+        ]
+        .unique()
+        .tolist()
+    )
+
+    # ----------------------------------------------------------
+    # funktion
+    # ----------------------------------------------------------
+
+    funktion_kategorien = sorted(
+        gdf.loc[
+            has_funktion,
+            "funktion"
         ]
         .unique()
         .tolist()
@@ -381,8 +398,12 @@ def check_dataframe(path, cols):
     )
 
     # ==========================================================
-    # 14. Anzahl Gebäude je NutzungArt-Kategorie
+    # 14. Anzahl Gebäude je Kategorie
     # ==========================================================
+
+    # ----------------------------------------------------------
+    # NutzungArt
+    # ----------------------------------------------------------
 
     nutzungart_counts = (
         gdf.loc[
@@ -393,7 +414,6 @@ def check_dataframe(path, cols):
         .sort_index()
     )
 
-    # Summe aller einzelnen Kategorien
     n_nutzungart_aus_kategorien = int(
         nutzungart_counts.sum()
     )
@@ -401,6 +421,28 @@ def check_dataframe(path, cols):
     check_summe_einzelkategorien = (
         n_nutzungart_aus_kategorien
         == n_nutzungart
+    )
+
+    # ----------------------------------------------------------
+    # funktion
+    # ----------------------------------------------------------
+
+    funktion_counts = (
+        gdf.loc[
+            has_funktion,
+            "funktion"
+        ]
+        .value_counts()
+        .sort_index()
+    )
+
+    n_funktion_aus_kategorien = int(
+        funktion_counts.sum()
+    )
+
+    check_summe_funktion_kategorien = (
+        n_funktion_aus_kategorien
+        == n_funktion
     )
 
     # ==========================================================
@@ -595,11 +637,24 @@ def check_dataframe(path, cols):
         )
 
         # ======================================================
-        # 3. Gegencheck Wohn-/Nicht-Wohn-Kategorien
+        # 3. Gegenchecks
         # ======================================================
 
         file.write(
-            "\n\n3. GEGENCHECK WOHNEN / NICHT-WOHNEN\n"
+            "\n\n3. GEGENCHECKS\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
+        )
+
+        # ------------------------------------------------------
+        # Wohnen / Nicht-Wohnen
+        # ------------------------------------------------------
+
+        file.write(
+            "3.1 Wohnen / Nicht-Wohnen\n"
         )
 
         file.write(
@@ -639,11 +694,16 @@ def check_dataframe(path, cols):
         )
 
         # ------------------------------------------------------
-        # Kategoriencheck
+        # Kategoriencheck NutzungArt
         # ------------------------------------------------------
 
         file.write(
-            "Prüfung Kategorienlisten:\n"
+            "3.2 Kategorienlisten NutzungArt\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
         )
 
         file.write(
@@ -703,11 +763,20 @@ def check_dataframe(path, cols):
                 )
 
         # ------------------------------------------------------
-        # Summe Einzelkategorien
+        # Summencheck NutzungArt
         # ------------------------------------------------------
 
         file.write(
-            "\nSumme Gebäude aus allen einzelnen "
+            "\n\n3.3 Summencheck NutzungArt-Kategorien\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
+        )
+
+        file.write(
+            "Summe Gebäude aus allen einzelnen "
             "NutzungArt-Kategorien:\n"
         )
 
@@ -728,6 +797,41 @@ def check_dataframe(path, cols):
             f"{check_summe_einzelkategorien}\n"
         )
 
+        # ------------------------------------------------------
+        # Summencheck funktion
+        # ------------------------------------------------------
+
+        file.write(
+            "\n\n3.4 Summencheck funktion-Kategorien\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n\n"
+        )
+
+        file.write(
+            "Summe Gebäude aus allen einzelnen "
+            "funktion-Kategorien:\n"
+        )
+
+        file.write(
+            f"{n_funktion_aus_kategorien}\n"
+        )
+
+        file.write(
+            "Gesamtzahl Gebäude mit funktion:\n"
+        )
+
+        file.write(
+            f"{n_funktion}\n"
+        )
+
+        file.write(
+            "Ergebnis: "
+            f"{check_summe_funktion_kategorien}\n"
+        )
+
         # ======================================================
         # 4. Kategorien
         # ======================================================
@@ -742,11 +846,30 @@ def check_dataframe(path, cols):
         )
 
         # ------------------------------------------------------
+        # Alle funktion-Kategorien
+        # ------------------------------------------------------
+
+        file.write(
+            "Alle vorhandenen funktion-Kategorien:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
+        )
+
+        for category in funktion_kategorien:
+
+            file.write(
+                f"- {category}\n"
+            )
+
+        # ------------------------------------------------------
         # Alle NutzungArt-Kategorien
         # ------------------------------------------------------
 
         file.write(
-            "Alle vorhandenen NutzungArt-Kategorien:\n"
+            "\n\nAlle vorhandenen NutzungArt-Kategorien:\n"
         )
 
         file.write(
@@ -818,16 +941,64 @@ def check_dataframe(path, cols):
             )
 
         # ======================================================
-        # 5. Anzahl Gebäude je NutzungArt
+        # 5. Anzahl Gebäude je Kategorie
         # ======================================================
 
         file.write(
-            "\n\n5. ANZAHL GEBÄUDE JE NUTZUNGART\n"
+            "\n\n5. ANZAHL GEBÄUDE JE KATEGORIE\n"
         )
 
         file.write(
             "=" * 80
             + "\n\n"
+        )
+
+        # ------------------------------------------------------
+        # funktion
+        # ------------------------------------------------------
+
+        file.write(
+            "Anzahl Gebäude je funktion:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
+        )
+
+        for category, count in funktion_counts.items():
+
+            file.write(
+                f"- {category}: "
+                f"{count}\n"
+            )
+
+        file.write(
+            "\nSumme Gebäude aus allen funktion-Kategorien: "
+            f"{n_funktion_aus_kategorien}\n"
+        )
+
+        file.write(
+            "Gesamtzahl Gebäude mit funktion: "
+            f"{n_funktion}\n"
+        )
+
+        file.write(
+            "Ergebnis: "
+            f"{check_summe_funktion_kategorien}\n"
+        )
+
+        # ------------------------------------------------------
+        # NutzungArt
+        # ------------------------------------------------------
+
+        file.write(
+            "\n\nAnzahl Gebäude je NutzungArt:\n"
+        )
+
+        file.write(
+            "-" * 80
+            + "\n"
         )
 
         for category, count in nutzungart_counts.items():
@@ -836,6 +1007,21 @@ def check_dataframe(path, cols):
                 f"- {category}: "
                 f"{count}\n"
             )
+
+        file.write(
+            "\nSumme Gebäude aus allen NutzungArt-Kategorien: "
+            f"{n_nutzungart_aus_kategorien}\n"
+        )
+
+        file.write(
+            "Gesamtzahl Gebäude mit NutzungArt: "
+            f"{n_nutzungart}\n"
+        )
+
+        file.write(
+            "Ergebnis: "
+            f"{check_summe_einzelkategorien}\n"
+        )
 
     # ==========================================================
     # 17. Konsolenausgabe
@@ -861,6 +1047,16 @@ def check_dataframe(path, cols):
     print(
         "Keine Überschneidung Wohnen/Nicht-Wohnen: "
         f"{check_kategorien_keine_ueberschneidung}"
+    )
+
+    print(
+        "Summe NutzungArt-Kategorien korrekt: "
+        f"{check_summe_einzelkategorien}"
+    )
+
+    print(
+        "Summe funktion-Kategorien korrekt: "
+        f"{check_summe_funktion_kategorien}"
     )
 
     # ==========================================================
@@ -904,6 +1100,9 @@ def check_dataframe(path, cols):
         "nutzungart_kategorien":
             nutzungart_kategorien,
 
+        "funktion_kategorien":
+            funktion_kategorien,
+
         "wohn_kategorien":
             wohn_kategorien,
 
@@ -915,6 +1114,9 @@ def check_dataframe(path, cols):
 
         "nutzungart_counts":
             nutzungart_counts,
+
+        "funktion_counts":
+            funktion_counts,
 
         # ------------------------------------------------------
         # Gegenchecks
@@ -934,6 +1136,9 @@ def check_dataframe(path, cols):
 
         "check_summe_einzelkategorien":
             check_summe_einzelkategorien,
+
+        "check_summe_funktion_kategorien":
+            check_summe_funktion_kategorien,
 
         # ------------------------------------------------------
         # Bericht
@@ -958,10 +1163,15 @@ cols = [
     "GebaeudeID",
     "GebTyp",
     "NutzungArt",
-    "Waermebed_",
     "P_th",
     "nutzflaeche_korr",
     "AnzlWhg",
+    "Baualter_int",
+    "funktion",
+    "Waermebed_",
+    "demand_kwh",
+    "demand_2035",
+    "demand_2045",
 ]
 
 
@@ -979,6 +1189,11 @@ gdf_nicht_wohnen = data["gdf_nicht_wohnen"]
 gdf_hotel = gdf_nicht_wohnen[
     gdf_nicht_wohnen["NutzungArt"] == "Hotel, Motel, Pension"
 ].copy()
+
+gdf_buero = gdf_nicht_wohnen[
+    gdf_nicht_wohnen["NutzungArt"] == "B�rogeb�ude"
+].copy()
+
 
 print("check")
 

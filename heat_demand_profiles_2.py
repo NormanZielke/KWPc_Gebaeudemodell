@@ -7,7 +7,8 @@ from pathlib import Path
 def compare_heat_profiles(
         normalized_path,
         specific_path,
-        peak_load_kw
+        peak_load_kw,
+        plot_folder
 ):
     """
     Vergleicht eine normierte Wärme-Zeitreihe mit einer spezifischen
@@ -27,6 +28,9 @@ def compare_heat_profiles(
     peak_load_kw : float
         Spitzenlast der spezifischen Zeitreihe in kW.
 
+    plot_folder : str
+        Zielordner innerhalb des Ordners "plots".
+
     Returns
     -------
     pd.DataFrame
@@ -41,9 +45,26 @@ def compare_heat_profiles(
     normalized_path = Path(normalized_path)
     specific_path = Path(specific_path)
 
-    # Ausgabeordner im Ordner der spezifischen Zeitreihe
-    plot_path = specific_path.parent / "plots"
-    plot_path.mkdir(parents=True, exist_ok=True)
+    # Verhindern, dass ein absoluter Pfad übergeben wird
+    plot_folder = Path(plot_folder)
+
+    if plot_folder.is_absolute():
+        raise ValueError(
+            "plot_folder muss ein relativer Ordnername innerhalb von 'plots/' sein."
+        )
+
+    # z. B.:
+    # nPro/ID_25/plots/Hotel_42kW/
+    plot_path = (
+        specific_path.parent
+        / "plots"
+        / plot_folder
+    )
+
+    plot_path.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
 
     # --------------------------------------------------
@@ -121,17 +142,14 @@ def compare_heat_profiles(
     # --------------------------------------------------
 
     df_norm["heat_scaled_kw"] = (
-        df_norm[heat_col] * peak_load_kw
+        df_norm[heat_col]
+        * peak_load_kw
     )
 
 
     # --------------------------------------------------
     # Gesamtwärmebedarf berechnen
     # --------------------------------------------------
-    # Bei Stundenwerten:
-    # kW * 1 h = kWh
-    # Daher entspricht die Summe der Werte dem
-    # Jahreswärmebedarf in kWh.
 
     heat_demand_norm_kwh = (
         df_norm["heat_scaled_kw"].sum()
@@ -158,18 +176,14 @@ def compare_heat_profiles(
     # --------------------------------------------------
 
     results_text = (
-        f"Spitzenlast: {peak_load_kw:.2f} kW\n"
-        f"\n"
+        f"Spitzenlast: {peak_load_kw:.2f} kW\n\n"
         f"Gesamtwärmebedarf normiertes Profil "
         f"({peak_load_kw:g} kW): "
-        f"{heat_demand_norm_kwh:,.1f} kWh\n"
-        f"\n"
+        f"{heat_demand_norm_kwh:,.1f} kWh\n\n"
         f"Gesamtwärmebedarf spezifisches Profil: "
-        f"{heat_demand_spec_kwh:,.1f} kWh\n"
-        f"\n"
+        f"{heat_demand_spec_kwh:,.1f} kWh\n\n"
         f"Differenz: "
-        f"{difference_kwh:,.1f} kWh\n"
-        f"\n"
+        f"{difference_kwh:,.1f} kWh\n\n"
         f"Relative Abweichung: "
         f"{relative_difference_percent:.2f} %\n"
     )
@@ -182,7 +196,8 @@ def compare_heat_profiles(
     # --------------------------------------------------
 
     results_file = (
-        plot_path / "Auswertung_Lastprofile.txt"
+        plot_path
+        / "Auswertung_Lastprofile.txt"
     )
 
     with open(
@@ -263,6 +278,7 @@ def compare_heat_profiles(
 
     plt.xlabel("Zeit")
     plt.ylabel("Differenz [kW]")
+
     plt.title(
         "Differenz: spezifisches Profil "
         "- skaliertes normiertes Profil"
@@ -332,18 +348,13 @@ def compare_heat_profiles(
 
 
     # --------------------------------------------------
-    # Speicherorte ausgeben
+    # Speicherort ausgeben
     # --------------------------------------------------
 
     print(
         f"\nErgebnisse gespeichert unter:\n"
         f"{plot_path}"
     )
-
-
-    # --------------------------------------------------
-    # Vergleichs-DataFrame zurückgeben
-    # --------------------------------------------------
 
     return df_compare
 
@@ -355,4 +366,5 @@ file_specific = data_path / "Hotel_816m2_14kW_23647kWh.csv"
 compare_heat_profiles(
     file_normalized,
     file_specific,
-    14)
+    13.6,
+    plot_folder= "Hotel_Peak_Gesamtbedarf")

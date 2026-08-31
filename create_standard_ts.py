@@ -97,4 +97,4 @@ def normalize_heat_profile(file_path, peak_load_kw):
 data_path = Path("nPro/ID_25")
 file_specific = data_path / "Hotel_225m2_42kW_26072kWh.csv"
 
-df = normalize_heat_profile(file_specific,41.5)
+df = normalize_heat_profile(file_specific,41.7)

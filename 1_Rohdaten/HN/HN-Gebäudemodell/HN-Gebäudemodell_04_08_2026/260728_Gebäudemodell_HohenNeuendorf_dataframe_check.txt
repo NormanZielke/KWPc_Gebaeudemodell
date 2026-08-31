@@ -40,7 +40,10 @@ Aussage:
 Ergebnis: True
 
 
-3. GEGENCHECK WOHNEN / NICHT-WOHNEN
+3. GEGENCHECKS
+--------------------------------------------------------------------------------
+
+3.1 Wohnen / Nicht-Wohnen
 --------------------------------------------------------------------------------
 
 Gebäude mit Wohn-Kategorie: 8960
@@ -52,7 +55,9 @@ Prüfung:
 Wohnen + Nicht-Wohnen == Gebäude mit NutzungArt
 Ergebnis: True
 
-Prüfung Kategorienlisten:
+3.2 Kategorienlisten NutzungArt
+--------------------------------------------------------------------------------
+
 Wohn-Kategorien + Nicht-Wohn-Kategorien decken alle vorhandenen NutzungArt-Kategorien ab:
 Ergebnis: True
 
@@ -62,6 +67,10 @@ Ergebnis: True
 Mixed-Use-Kategorien sind vollständig in den Wohn-Kategorien enthalten:
 Ergebnis: True
 
+
+3.3 Summencheck NutzungArt-Kategorien
+--------------------------------------------------------------------------------
+
 Summe Gebäude aus allen einzelnen NutzungArt-Kategorien:
 9550
 Gesamtzahl Gebäude mit NutzungArt:
@@ -69,8 +78,60 @@ Gesamtzahl Gebäude mit NutzungArt:
 Ergebnis: True
 
 
+3.4 Summencheck funktion-Kategorien
+--------------------------------------------------------------------------------
+
+Summe Gebäude aus allen einzelnen funktion-Kategorien:
+2279
+Gesamtzahl Gebäude mit funktion:
+2279
+Ergebnis: True
+
+
 4. KATEGORIEN
 ================================================================================
+
+Alle vorhandenen funktion-Kategorien:
+--------------------------------------------------------------------------------
+- Betriebsgebäude für Schienenverkehr
+- Einkaufszentrum
+- Fahrzeughalle
+- Garage
+- Gartenhaus
+- Gebäude für Gewerbe und Industrie
+- Gebäude für Sportzwecke
+- Gebäude für Vorratshaltung
+- Gebäude für Wirtschaft oder Gewerbe
+- Gebäude für religiöse Zwecke
+- Gebäude zum Parken
+- Gebäude zur Abfallbehandlung
+- Gebäude zur Elektrizitätsversorgung
+- Gebäude zur Freizeitgestaltung
+- Gebäude zur Versorgungsanlage
+- Heizwerk
+- Kapelle
+- Kirche
+- Lagerhalle, Lagerschuppen, Lagerhaus
+- Land- und forstwirtschaftliches Betriebsgebäude
+- Nach Quellenlage nicht zu spezifizieren
+- Produktionsgebäude
+- Pumpstation
+- Scheune
+- Schuppen
+- Sonstiges
+- Sport-, Turnhalle
+- Stall
+- Stellwerk, Blockstelle
+- Tankstelle
+- Tiefgarage
+- Treibhaus, Gewächshaus
+- Umformer
+- Werkstatt
+- Wochenendhaus
+- Wohngebäude mit Handel und Dienstleistungen
+- Wohnhaus
+- Überdachung
+
 
 Alle vorhandenen NutzungArt-Kategorien:
 --------------------------------------------------------------------------------
@@ -172,9 +233,57 @@ Nicht-Wohn-Kategorien:
 - �rztehaus, Poliklinik
 
 
-5. ANZAHL GEBÄUDE JE NUTZUNGART
+5. ANZAHL GEBÄUDE JE KATEGORIE
 ================================================================================
 
+Anzahl Gebäude je funktion:
+--------------------------------------------------------------------------------
+- Betriebsgebäude für Schienenverkehr: 2
+- Einkaufszentrum: 1
+- Fahrzeughalle: 4
+- Garage: 731
+- Gartenhaus: 16
+- Gebäude für Gewerbe und Industrie: 2
+- Gebäude für Sportzwecke: 6
+- Gebäude für Vorratshaltung: 24
+- Gebäude für Wirtschaft oder Gewerbe: 17
+- Gebäude für religiöse Zwecke: 5
+- Gebäude zum Parken: 29
+- Gebäude zur Abfallbehandlung: 1
+- Gebäude zur Elektrizitätsversorgung: 5
+- Gebäude zur Freizeitgestaltung: 573
+- Gebäude zur Versorgungsanlage: 2
+- Heizwerk: 1
+- Kapelle: 3
+- Kirche: 5
+- Lagerhalle, Lagerschuppen, Lagerhaus: 25
+- Land- und forstwirtschaftliches Betriebsgebäude: 263
+- Nach Quellenlage nicht zu spezifizieren: 24
+- Produktionsgebäude: 1
+- Pumpstation: 1
+- Scheune: 23
+- Schuppen: 240
+- Sonstiges: 3
+- Sport-, Turnhalle: 8
+- Stall: 32
+- Stellwerk, Blockstelle: 2
+- Tankstelle: 6
+- Tiefgarage: 2
+- Treibhaus, Gewächshaus: 1
+- Umformer: 6
+- Werkstatt: 22
+- Wochenendhaus: 7
+- Wohngebäude mit Handel und Dienstleistungen: 3
+- Wohnhaus: 170
+- Überdachung: 13
+
+Summe Gebäude aus allen funktion-Kategorien: 2279
+Gesamtzahl Gebäude mit funktion: 2279
+Ergebnis: True
+
+
+Anzahl Gebäude je NutzungArt:
+--------------------------------------------------------------------------------
 - Allgemein bildende Schule: 13
 - Betriebsgeb�ude: 10
 - B�rogeb�ude: 17
@@ -214,3 +323,7 @@ Nicht-Wohn-Kategorien:
 - Wohnhaus: 8800
 - Wohnheim: 11
 - �rztehaus, Poliklinik: 1
+
+Summe Gebäude aus allen NutzungArt-Kategorien: 9550
+Gesamtzahl Gebäude mit NutzungArt: 9550
+Ergebnis: True
