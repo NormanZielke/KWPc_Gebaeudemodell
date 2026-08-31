@@ -11,6 +11,7 @@ class BuildingModelCheck:
     nutzungarten: object
     gdf_mixed: gpd.GeoDataFrame
     gdf_nicht_wohnen: gpd.GeoDataFrame
+    Nutzungsarten_nicht_wohnen: object
 
 
 def check_dataframe(path):
@@ -66,6 +67,8 @@ def check_dataframe(path):
         ~gdf["NutzungArt"].isin(wohn_kategorien)
     ].copy()
 
+    Nutzungsarten_nicht_wohnen = gdf_nicht_wohnen["NutzungArt"].unique()
+
     return BuildingModelCheck(
         gdf=gdf,
         gdf_funktion=gdf_funktion,
@@ -74,6 +77,7 @@ def check_dataframe(path):
         nutzungarten=nutzungarten,
         gdf_mixed=gdf_mixed,
         gdf_nicht_wohnen=gdf_nicht_wohnen,
+        Nutzungsarten_nicht_wohnen = Nutzungsarten_nicht_wohnen,
     )
 
 
