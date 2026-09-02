@@ -17,7 +17,7 @@ def create_gebaeudetypen_table(
     Erstellt eine Excel-Tabelle analog zur nPro-Mapping-Tabelle.
 
     Die Tabelle enthält:
-        - Gebäudetyp - gdf
+        - NutzungArt - gdf
         - Funktion - gdf
         - Anzahl - gdf
         - npro_type
@@ -205,7 +205,7 @@ def create_gebaeudetypen_table(
     mapping = pd.read_excel(mapping_path)
 
     required_mapping_cols = [
-        "Gebäudetyp - gdf",
+        "NutzungArt - gdf",
         "Funktion - gdf",
         "npro_type"
     ]
@@ -225,12 +225,12 @@ def create_gebaeudetypen_table(
     # Lookup-Tabelle zusammenführen.
     mapping_nutzung = (
         mapping[
-            ["Gebäudetyp - gdf", "npro_type"]
+            ["NutzungArt - gdf", "npro_type"]
         ]
-        .dropna(subset=["Gebäudetyp - gdf"])
+        .dropna(subset=["NutzungArt - gdf"])
         .rename(
             columns={
-                "Gebäudetyp - gdf": "Gebaeudetyp"
+                "NutzungArt - gdf": "Gebaeudetyp"
             }
         )
     )
@@ -291,7 +291,7 @@ def create_gebaeudetypen_table(
     # ---------------------------------------------------------
     # Originalspalten analog zur Mapping-Tabelle erzeugen
     # ---------------------------------------------------------
-    result["Gebäudetyp - gdf"] = result["Gebaeudetyp"].apply(
+    result["NutzungArt - gdf"] = result["Gebaeudetyp"].apply(
         lambda value:
         value
         if value in nutzung_types
@@ -307,13 +307,13 @@ def create_gebaeudetypen_table(
 
     # Falls keine der beiden Quellspalten belegt war.
     no_source = (
-        result["Gebäudetyp - gdf"].isna()
+        result["NutzungArt - gdf"].isna()
         & result["Funktion - gdf"].isna()
     )
 
     result.loc[
         no_source,
-        "Gebäudetyp - gdf"
+        "NutzungArt - gdf"
     ] = result.loc[
         no_source,
         "Gebaeudetyp"
@@ -323,8 +323,8 @@ def create_gebaeudetypen_table(
     # Ausgabetabelle
     # ---------------------------------------------------------
     output = pd.DataFrame({
-        "Gebäudetyp - gdf":
-            result["Gebäudetyp - gdf"],
+        "NutzungArt - gdf":
+            result["NutzungArt - gdf"],
 
         "Funktion - gdf":
             result["Funktion - gdf"],
@@ -407,8 +407,8 @@ def create_gebaeudetypen_table(
         for _, row in missing_mapping.iterrows():
 
             typ = (
-                row["Gebäudetyp - gdf"]
-                if pd.notna(row["Gebäudetyp - gdf"])
+                row["NutzungArt - gdf"]
+                if pd.notna(row["NutzungArt - gdf"])
                 else row["Funktion - gdf"]
             )
 
