@@ -235,7 +235,7 @@ def create_npro_type_mapping(
 
 if __name__ == "__main__":
     GPKG_PATH = DEFAULT_GPKG_PATH
-    EXCEL_PATH = "npro_type_mapping.xlsx"
+    EXCEL_PATH = "outputs/gebaeudemodell/npro_type_mapping.xlsx"
 
     df_mapping = create_npro_type_mapping(
         gpkg_path=GPKG_PATH,

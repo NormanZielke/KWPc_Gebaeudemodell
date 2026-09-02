@@ -13,13 +13,13 @@ GPKG_PATH = (
 
 LAYER = "gebudemodell_final_28042026_saniert"
 
-MAPPING_PATH = "npro_type_mapping_1.xlsx"
+MAPPING_PATH = "outputs/gebaeudemodell/npro_type_mapping.xlsx"
 
-PLOT_OUTPUT_DIR = "plots/gebaeudemodell"
+PLOT_OUTPUT_DIR = "outputs/gebaeudemodell/plots"
 
 TABLE_OUTPUT_PATH = (
     "outputs/gebaeudemodell/"
-    "gebaeudetypen_auswertung.xlsx"
+    "gebaeudetypen_auswertung_kumuliert.xlsx"
 )
 
 # Dieselben Schwellenwerte werden für Diagramm und Tabelle verwendet.
