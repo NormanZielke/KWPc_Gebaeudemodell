@@ -201,7 +201,7 @@ def create_npro_type_mapping(
         .reset_index(name="Anzahl - gdf")
         .rename(
             columns={
-                "NutzungArt": "Gebäudetyp - gdf",
+                "NutzungArt": "NutzungArt - gdf",
                 "funktion": "Funktion - gdf",
             }
         )
@@ -209,7 +209,7 @@ def create_npro_type_mapping(
 
     mapping_df["npro_type"] = mapping_df.apply(
         lambda row: _resolve_npro_type(
-            row["Gebäudetyp - gdf"],
+            row["NutzungArt - gdf"],
             row["Funktion - gdf"],
         ),
         axis=1,
@@ -223,7 +223,7 @@ def create_npro_type_mapping(
 
     # Gewünschte Spaltenreihenfolge.
     mapping_df = mapping_df[
-        ["Gebäudetyp - gdf", "Funktion - gdf", "Anzahl - gdf", "npro_type"]
+        ["NutzungArt - gdf", "Funktion - gdf", "Anzahl - gdf", "npro_type"]
     ].reset_index(drop=True)
 
     # Excel-Ausgabe.
