@@ -1,43 +1,144 @@
+from pathlib import Path
+
 import geopandas as gpd
 import pandas as pd
-from pathlib import Path
+
+from gebaeudetypen_common import (
+    add_source_columns,
+    aggregate_categories,
+)
+
+
+def _create_mapping_lookup(
+        mapping,
+        category_cols
+):
+    """
+    Baut einen Lookup:
+        (Quellspalte, Kategorie) -> npro_type
+    """
+    records = []
+
+    for col in category_cols:
+        mapping_col = (
+            f"{col} - gdf"
+        )
+
+        if mapping_col not in mapping.columns:
+            raise KeyError(
+                f"Spalte '{mapping_col}' fehlt "
+                "in der Mapping-Datei."
+            )
+
+        temp = mapping[
+            [
+                mapping_col,
+                "npro_type"
+            ]
+        ].dropna(
+            subset=[mapping_col]
+        )
+
+        for _, row in temp.iterrows():
+            records.append(
+                {
+                    "Quellspalte": col,
+                    "Kategorie": row[mapping_col],
+                    "npro_type": row["npro_type"],
+                }
+            )
+
+    lookup = pd.DataFrame(
+        records
+    )
+
+    if lookup.empty:
+        return {}
+
+    conflicts = (
+        lookup
+        .dropna(
+            subset=["npro_type"]
+        )
+        .groupby(
+            [
+                "Quellspalte",
+                "Kategorie"
+            ]
+        )["npro_type"]
+        .nunique()
+    )
+
+    conflicts = conflicts[
+        conflicts > 1
+    ]
+
+    if not conflicts.empty:
+        raise ValueError(
+            "Widersprüchliche npro_type-Zuordnungen "
+            "in der Mapping-Datei:\n"
+            + "\n".join(
+                f"{source}: {category}"
+                for source, category
+                in conflicts.index
+            )
+        )
+
+    lookup = lookup.drop_duplicates(
+        subset=[
+            "Quellspalte",
+            "Kategorie"
+        ]
+    )
+
+    return {
+        (
+            row["Quellspalte"],
+            row["Kategorie"]
+        ): row["npro_type"]
+        for _, row
+        in lookup.iterrows()
+    }
 
 
 def create_gebaeudetypen_table(
         path,
+        category_cols,
         mapping_path,
-        output_path="gebaeudetypen_auswertung.xlsx",
+        output_path,
         layer=None,
         demand_col="demand_kwh",
-        nutzung_col="NutzungArt",
-        funktion_col="funktion",
         thresholds=(0.90, 0.95, 0.98)
 ):
     """
-    Erstellt eine Excel-Tabelle analog zur nPro-Mapping-Tabelle.
+    Erstellt die kumulierte Gebäudetypen-Tabelle.
 
-    Die Tabelle enthält:
-        - NutzungArt - gdf
-        - Funktion - gdf
-        - Anzahl - gdf
-        - npro_type
-        - Wärmebedarf [kWh/a]
-        - Wärmebedarf [GWh/a]
-        - Anteil Wärmebedarf [%]
-        - Wärmebedarf_kumuliert [GWh/a]
-        - Kumulierter Anteil Wärmebedarf [%]
-        - Markierung
+    Die Spalten der Ausgabe passen sich automatisch an
+    category_cols an.
 
-    Die Sortierung entspricht dem Diagramm:
-        absteigend nach summiertem Wärmebedarf.
+    Beispiele
+    ---------
+    ["GebTyp"]:
+        GebTyp - gdf
 
-    Die Markierung zeigt die Zeile, bei der ein Schwellenwert
-    (z. B. 90 %, 95 %, 98 %) erstmals erreicht bzw. überschritten wird.
+    ["GebTyp", "funktion"]:
+        GebTyp - gdf
+        funktion - gdf
+
+    ["NutzungArt", "funktion"]:
+        NutzungArt - gdf
+        funktion - gdf
     """
-
     path = Path(path)
     mapping_path = Path(mapping_path)
     output_path = Path(output_path)
+
+    if isinstance(category_cols, str):
+        category_cols = [category_cols]
+
+    category_cols = list(
+        category_cols
+    )
 
     output_path.parent.mkdir(
         parents=True,
@@ -45,127 +146,25 @@ def create_gebaeudetypen_table(
     )
 
     # ---------------------------------------------------------
-    # Gebäudemodell einlesen
+    # GeoPackage einlesen
     # ---------------------------------------------------------
     if layer is None:
-        gdf = gpd.read_file(path)
+        gdf = gpd.read_file(
+            path
+        )
     else:
         gdf = gpd.read_file(
             path,
             layer=layer
         )
 
-    required_cols = [
-        nutzung_col,
-        funktion_col,
-        demand_col
-    ]
-
-    missing_cols = [
-        col for col in required_cols
-        if col not in gdf.columns
-    ]
-
-    if missing_cols:
-        raise KeyError(
-            f"Folgende Spalten fehlen im Gebäudemodell: "
-            f"{missing_cols}"
-        )
-
     # ---------------------------------------------------------
-    # Daten vorbereiten
+    # Aggregation
     # ---------------------------------------------------------
-    gdf[demand_col] = pd.to_numeric(
-        gdf[demand_col],
-        errors="coerce"
-    ).fillna(0)
-
-    for col in [nutzung_col, funktion_col]:
-        gdf[col] = gdf[col].replace(
-            r"^\s*$",
-            pd.NA,
-            regex=True
-        )
-
-    # Genau dieselbe Logik wie im Diagramm:
-    # NutzungArt hat Vorrang, ansonsten funktion.
-    gdf["Gebaeudetyp"] = (
-        gdf[nutzung_col]
-        .fillna(gdf[funktion_col])
-        .fillna("Keine Zuordnung")
-    )
-
-    # Merken, in welcher Originalspalte ein Typ vorkommt.
-    nutzung_types = set(
-        gdf[nutzung_col]
-        .dropna()
-        .astype(str)
-        .unique()
-    )
-
-    funktion_types = set(
-        gdf[funktion_col]
-        .dropna()
-        .astype(str)
-        .unique()
-    )
-
-    # ---------------------------------------------------------
-    # Aggregation analog zum Diagramm
-    # ---------------------------------------------------------
-    result = (
-        gdf
-        .groupby("Gebaeudetyp", dropna=False)
-        .agg(
-            anzahl_gebaeude=("Gebaeudetyp", "size"),
-            demand_kwh_sum=(demand_col, "sum")
-        )
-        .reset_index()
-    )
-
-    result["demand_gwh_sum"] = (
-        result["demand_kwh_sum"] / 1_000_000
-    )
-
-    result = (
-        result
-        .sort_values(
-            "demand_kwh_sum",
-            ascending=False
-        )
-        .reset_index(drop=True)
-    )
-
-    # ---------------------------------------------------------
-    # Anteile und kumulierte Werte
-    # ---------------------------------------------------------
-    total_demand = result["demand_kwh_sum"].sum()
-
-    if total_demand <= 0:
-        raise ValueError(
-            "Der gesamte Wärmebedarf ist kleiner oder gleich 0. "
-            "Eine kumulierte Prozent-Auswertung ist nicht möglich."
-        )
-
-    result["demand_share_percent"] = (
-        result["demand_kwh_sum"]
-        / total_demand
-        * 100
-    )
-
-    result["demand_kwh_cumsum"] = (
-        result["demand_kwh_sum"].cumsum()
-    )
-
-    result["demand_gwh_cumsum"] = (
-        result["demand_kwh_cumsum"]
-        / 1_000_000
-    )
-
-    result["demand_share_cumsum_percent"] = (
-        result["demand_kwh_cumsum"]
-        / total_demand
-        * 100
+    result, total_demand = aggregate_categories(
+        gdf=gdf,
+        category_cols=category_cols,
+        demand_col=demand_col
     )
 
     # ---------------------------------------------------------
@@ -177,10 +176,10 @@ def create_gebaeudetypen_table(
     }
 
     for threshold in thresholds:
-
         reached = result.index[
-            result["demand_share_cumsum_percent"]
-            >= threshold * 100
+            result[
+                "demand_share_cumsum_percent"
+            ] >= threshold * 100
         ]
 
         if len(reached) == 0:
@@ -188,171 +187,133 @@ def create_gebaeudetypen_table(
 
         idx = reached[0]
 
-        threshold_labels[idx].append(
+        threshold_labels[
+            idx
+        ].append(
             f"{threshold * 100:.0f} %"
         )
 
     result["Markierung"] = [
-        ", ".join(threshold_labels[idx])
+        ", ".join(
+            threshold_labels[idx]
+        )
         if threshold_labels[idx]
         else ""
         for idx in result.index
     ]
 
     # ---------------------------------------------------------
-    # nPro-Mapping einlesen
+    # Dynamische Quellspalten
     # ---------------------------------------------------------
-    mapping = pd.read_excel(mapping_path)
+    result = add_source_columns(
+        result=result,
+        category_cols=category_cols
+    )
 
-    required_mapping_cols = [
-        "NutzungArt - gdf",
-        "Funktion - gdf",
-        "npro_type"
-    ]
+    # ---------------------------------------------------------
+    # nPro-Mapping laden
+    # ---------------------------------------------------------
+    if not mapping_path.exists():
+        raise FileNotFoundError(
+            f"Mapping-Datei nicht gefunden:\n"
+            f"{mapping_path}"
+        )
 
-    missing_mapping_cols = [
-        col for col in required_mapping_cols
-        if col not in mapping.columns
-    ]
+    mapping = pd.read_excel(
+        mapping_path
+    )
 
-    if missing_mapping_cols:
+    if "npro_type" not in mapping.columns:
         raise KeyError(
-            f"Folgende Spalten fehlen in der Mapping-Datei: "
-            f"{missing_mapping_cols}"
+            "Die Mapping-Datei enthält keine "
+            "Spalte 'npro_type'."
         )
 
-    # Mapping beider Quellspalten zu einer gemeinsamen
-    # Lookup-Tabelle zusammenführen.
-    mapping_nutzung = (
-        mapping[
-            ["NutzungArt - gdf", "npro_type"]
-        ]
-        .dropna(subset=["NutzungArt - gdf"])
-        .rename(
-            columns={
-                "NutzungArt - gdf": "Gebaeudetyp"
-            }
-        )
+    lookup = _create_mapping_lookup(
+        mapping=mapping,
+        category_cols=category_cols
     )
 
-    mapping_funktion = (
-        mapping[
-            ["Funktion - gdf", "npro_type"]
-        ]
-        .dropna(subset=["Funktion - gdf"])
-        .rename(
-            columns={
-                "Funktion - gdf": "Gebaeudetyp"
-            }
-        )
+    result["npro_type"] = result.apply(
+        lambda row: lookup.get(
+            (
+                row["Quellspalte"],
+                row["Kategorie"]
+            ),
+            pd.NA
+        ),
+        axis=1
     )
-
-    mapping_long = pd.concat(
-        [
-            mapping_nutzung,
-            mapping_funktion
-        ],
-        ignore_index=True
-    )
-
-    # Prüfen, ob derselbe Gebäudetyp mehreren npro_types
-    # zugeordnet wurde.
-    conflicts = (
-        mapping_long
-        .dropna(subset=["npro_type"])
-        .groupby("Gebaeudetyp")["npro_type"]
-        .nunique()
-    )
-
-    conflicts = conflicts[
-        conflicts > 1
-    ]
-
-    if not conflicts.empty:
-        raise ValueError(
-            "In der Mapping-Datei existieren widersprüchliche "
-            "npro_type-Zuordnungen für folgende Gebäudetypen:\n"
-            + "\n".join(conflicts.index.astype(str))
-        )
-
-    mapping_lookup = (
-        mapping_long
-        .drop_duplicates(
-            subset=["Gebaeudetyp"]
-        )
-        .set_index("Gebaeudetyp")["npro_type"]
-    )
-
-    result["npro_type"] = (
-        result["Gebaeudetyp"]
-        .map(mapping_lookup)
-    )
-
-    # ---------------------------------------------------------
-    # Originalspalten analog zur Mapping-Tabelle erzeugen
-    # ---------------------------------------------------------
-    result["NutzungArt - gdf"] = result["Gebaeudetyp"].apply(
-        lambda value:
-        value
-        if value in nutzung_types
-        else pd.NA
-    )
-
-    result["Funktion - gdf"] = result["Gebaeudetyp"].apply(
-        lambda value:
-        value
-        if value in funktion_types
-        else pd.NA
-    )
-
-    # Falls keine der beiden Quellspalten belegt war.
-    no_source = (
-        result["NutzungArt - gdf"].isna()
-        & result["Funktion - gdf"].isna()
-    )
-
-    result.loc[
-        no_source,
-        "NutzungArt - gdf"
-    ] = result.loc[
-        no_source,
-        "Gebaeudetyp"
-    ]
 
     # ---------------------------------------------------------
     # Ausgabetabelle
     # ---------------------------------------------------------
-    output = pd.DataFrame({
-        "NutzungArt - gdf":
-            result["NutzungArt - gdf"],
+    source_output_cols = [
+        f"{col} - gdf"
+        for col in category_cols
+    ]
 
-        "Funktion - gdf":
-            result["Funktion - gdf"],
+    output = result[
+        source_output_cols
+    ].copy()
 
-        "Anzahl - gdf":
-            result["anzahl_gebaeude"],
+    output["Anzahl - gdf"] = (
+        result["anzahl_gebaeude"]
+    )
 
-        "npro_type":
-            result["npro_type"],
+    output["npro_type"] = (
+        result["npro_type"]
+    )
 
-        "Wärmebedarf [kWh/a]":
-            result["demand_kwh_sum"],
+    output["Wärmebedarf [kWh/a]"] = (
+        result["demand_kwh_sum"]
+    )
 
-        "Wärmebedarf [GWh/a]":
-            result["demand_gwh_sum"],
+    output["Wärmebedarf [GWh/a]"] = (
+        result["demand_gwh_sum"]
+    )
 
-        "Anteil Wärmebedarf [%]":
-            result["demand_share_percent"],
+    output["Anteil Wärmebedarf [%]"] = (
+        result["demand_share_percent"]
+    )
 
-        "Wärmebedarf_kumuliert [GWh/a]":
-            result["demand_gwh_cumsum"],
+    output[
+        "Wärmebedarf_kumuliert [GWh/a]"
+    ] = (
+        result["demand_gwh_cumsum"]
+    )
 
-        "Kumulierter Anteil Wärmebedarf [%]":
-            result["demand_share_cumsum_percent"],
+    output[
+        "Kumulierter Anteil Wärmebedarf [%]"
+    ] = (
+        result[
+            "demand_share_cumsum_percent"
+        ]
+    )
 
-        "Markierung":
-            result["Markierung"]
-    })
+    output["Markierung"] = (
+        result["Markierung"]
+    )
+
+    # ---------------------------------------------------------
+    # Sicherheitsprüfung
+    # ---------------------------------------------------------
+    filled_source_cols = (
+        output[
+            source_output_cols
+        ]
+        .notna()
+        .sum(axis=1)
+    )
+
+    if (
+        filled_source_cols > 1
+    ).any():
+        raise RuntimeError(
+            "Interner Fehler: In mindestens einer "
+            "Ausgabezeile sind mehrere Quellspalten "
+            "gleichzeitig befüllt."
+        )
 
     # ---------------------------------------------------------
     # Excel speichern
@@ -373,7 +334,6 @@ def create_gebaeudetypen_table(
     print("\nSchwellenwerte:")
 
     for threshold in thresholds:
-
         reached = output.index[
             output[
                 "Kumulierter Anteil Wärmebedarf [%]"
@@ -393,31 +353,9 @@ def create_gebaeudetypen_table(
             f"({output.loc[idx, 'Kumulierter Anteil Wärmebedarf [%]']:.1f} %)."
         )
 
-    missing_mapping = output[
-        output["npro_type"].isna()
-    ]
-
-    if not missing_mapping.empty:
-
-        print(
-            "\nWARNUNG: Für folgende Gebäudetypen wurde "
-            "kein npro_type gefunden:"
-        )
-
-        for _, row in missing_mapping.iterrows():
-
-            typ = (
-                row["NutzungArt - gdf"]
-                if pd.notna(row["NutzungArt - gdf"])
-                else row["Funktion - gdf"]
-            )
-
-            print(
-                f"  - {typ}"
-            )
-
     print(
-        f"\nTabelle gespeichert unter:\n{output_path}"
+        f"\nTabelle gespeichert unter:\n"
+        f"{output_path}"
     )
 
     return output
