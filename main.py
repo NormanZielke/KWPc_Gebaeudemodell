@@ -1,4 +1,4 @@
-from histogramm_gebaeudetypen import plot_gebaeudetypen
+from gebaeudetypen_histogramm import plot_gebaeudetypen
 from gebaeudetypen_tabelle import create_gebaeudetypen_table
 
 
