@@ -66,32 +66,38 @@ def plot_gebaeudetypen(
         demand_col=demand_col
     )
 
-    # Gleicher Kategoriename aus unterschiedlichen Quellen:
-    # Quelle zusätzlich im Label zeigen.
-    duplicate_names = (
-        result["Kategorie"]
-        .duplicated(keep=False)
-    )
+    # ---------------------------------------------------------
+    # X-Achsen-Beschriftung mit Quellspalte
+    # ---------------------------------------------------------
+    #
+    # Bei Varianten mit mehr als einer Quellspalte wird hinter
+    # JEDEM Eintrag die Quellspalte als Abkürzung angegeben:
+    #
+    #   NutzungArt -> [NArt]
+    #   funktion   -> [F]
+    #   GebTyp     -> [GTyp]
+    #
+    # Bei der Einspalten-Variante ["GebTyp"] wird keine
+    # Quellenangabe ergänzt.
+    # ---------------------------------------------------------
+    source_abbreviations = {
+        "NutzungArt": "NArt",
+        "funktion": "F",
+        "GebTyp": "GTyp",
+    }
 
-    result["Plot_Label"] = (
-        result["Kategorie"].astype(str)
-    )
-
-    result.loc[
-        duplicate_names,
-        "Plot_Label"
-    ] = (
-        result.loc[
-            duplicate_names,
-            "Kategorie"
-        ].astype(str)
-        + " ["
-        + result.loc[
-            duplicate_names,
-            "Quellspalte"
-        ].astype(str)
-        + "]"
-    )
+    if len(category_cols) > 1:
+        result["Plot_Label"] = result.apply(
+            lambda row: (
+                f"{row['Kategorie']} "
+                f"[{source_abbreviations.get(row['Quellspalte'], row['Quellspalte'])}]"
+            ),
+            axis=1
+        )
+    else:
+        result["Plot_Label"] = (
+            result["Kategorie"].astype(str)
+        )
 
     # ---------------------------------------------------------
     # Schwellenpositionen
