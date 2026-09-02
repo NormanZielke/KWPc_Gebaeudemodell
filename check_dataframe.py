@@ -1172,6 +1172,8 @@ cols = [
     "demand_kwh",
     "demand_2035",
     "demand_2045",
+    "demand_spec",
+    "demand_spec_san",
 ]
 
 
