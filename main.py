@@ -1,77 +1,76 @@
-from check_dataframe import check_dataframe
+from histogramm_gebaeudetypen import plot_gebaeudetypen
+from gebaeudetypen_tabelle import create_gebaeudetypen_table
 
 
-# ==============================================================
-# Einstellungen
-# ==============================================================
-
-path = (
+# -------------------------------------------------------------
+# Zentrale Einstellungen
+# -------------------------------------------------------------
+GPKG_PATH = (
     "1_Rohdaten/HN/HN-Gebäudemodell/"
     "HN-Gebäudemodell_04_08_2026/"
     "260728_Gebäudemodell_HohenNeuendorf.gpkg"
 )
 
-cols = [
-    "GebaeudeID",
-    "GebTyp",
-    "NutzungArt",
-    "P_th",
-    "nutzflaeche_korr",
-    "AnzlWhg",
-    "Baualter_int",
-    "funktion",
-    "Waermebed_",
-    "demand_kwh",
-    "demand_2035",
-    "demand_2045",
-]
+LAYER = "gebudemodell_final_28042026_saniert"
 
+MAPPING_PATH = "npro_type_mapping_1.xlsx"
 
-# ==============================================================
-# Gebäudemodell prüfen
-# ==============================================================
+PLOT_OUTPUT_DIR = "plots/gebaeudemodell"
 
-data = check_dataframe(
-    path,
-    cols
+TABLE_OUTPUT_PATH = (
+    "outputs/gebaeudemodell/"
+    "gebaeudetypen_auswertung.xlsx"
+)
+
+# Dieselben Schwellenwerte werden für Diagramm und Tabelle verwendet.
+THRESHOLDS = (
+    0.90,
+    0.95,
+    0.98,
+    0.99,
+    1
 )
 
 
-# ==============================================================
-# DataFrames für Debug-Modus
-# ==============================================================
+def main():
 
-gdf = data["gdf"]
+    # ---------------------------------------------------------
+    # 1. Diagramm erstellen
+    # ---------------------------------------------------------
+    plot_result = plot_gebaeudetypen(
+        path=GPKG_PATH,
+        output_dir=PLOT_OUTPUT_DIR,
+        layer=LAYER,
+        demand_col="demand_kwh",
+        nutzung_col="NutzungArt",
+        funktion_col="funktion",
+        thresholds=THRESHOLDS
+    )
 
-gdf_check = data["gdf_check"]
+    # ---------------------------------------------------------
+    # 2. Excel-Tabelle erstellen
+    # ---------------------------------------------------------
+    table_result = create_gebaeudetypen_table(
+        path=GPKG_PATH,
+        mapping_path=MAPPING_PATH,
+        output_path=TABLE_OUTPUT_PATH,
+        layer=LAYER,
+        demand_col="demand_kwh",
+        nutzung_col="NutzungArt",
+        funktion_col="funktion",
+        thresholds=THRESHOLDS
+    )
 
-gdf_nutzungart = data["gdf_nutzungart"]
-
-gdf_funktion = data["gdf_funktion"]
-
-gdf_wohnen = data["gdf_wohnen"]
-
-gdf_nicht_wohnen = data["gdf_nicht_wohnen"]
-
-gdf_mixed = data["gdf_mixed"]
-
-gdf_both = data["gdf_both"]
-
-gdf_neither = data["gdf_neither"]
-
-gdf_either = data["gdf_either"]
+    print("\nAuswertung abgeschlossen.")
+    print(
+        f"Gebäudetypen im Diagramm: "
+        f"{len(plot_result)}"
+    )
+    print(
+        f"Gebäudetypen in der Tabelle: "
+        f"{len(table_result)}"
+    )
 
 
-# ==============================================================
-# Beispiel: einzelne NutzungArt untersuchen
-# ==============================================================
-
-gdf_hotel = gdf_nicht_wohnen[
-    gdf_nicht_wohnen["NutzungArt"] == "Hotel, Motel, Pension"
-].copy()
-
-gdf_buero = gdf_nicht_wohnen[
-    gdf_nicht_wohnen["NutzungArt"] == "B�rogeb�ude"
-].copy()
-
-print("DEBUG")
+if __name__ == "__main__":
+    main()
