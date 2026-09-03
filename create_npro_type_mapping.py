@@ -3,19 +3,19 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
+from gebaeudetypen_common import (
+    add_source_columns,
+    make_columns_tag,
+    prepare_category_data,
+)
+
 
 UNDECIDED = "muss fachlich entschieden werden"
 
-DEFAULT_GPKG_PATH = (
-    "1_Rohdaten/HN/HN-Gebäudemodell/"
-    "HN-Gebäudemodell_04_08_2026/"
-    "260728_Gebäudemodell_HohenNeuendorf.gpkg"
-)
 
-# nPro-Gebäudetypen, die wir in diesem Mapping verwenden.
-# Wichtig: Die Werte in 'NutzungArt' wurden exakt so übernommen,
-# wie sie im GeoPackage vorliegen. Die Zeichen '�' daher NICHT ersetzen,
-# sonst greifen die String-Mappings nicht mehr.
+# =============================================================
+# nPro-Zuordnungen je Quellspalte
+# =============================================================
 
 NUTZUNGART_TO_NPRO = {
     # Wohnen
@@ -83,12 +83,30 @@ FUNKTION_TO_NPRO = {
     # Explizit gemischte Nutzung
     "Wohngebäude mit Handel und Dienstleistungen": "Gemischt",
 
-    # Funktion ist bereits nur als Sonstiges klassifiziert
     "Sonstiges": "Sonstiges",
 }
 
 
-# Gültige nPro-Typen. Dient nur als Plausibilitätscheck für das Mapping.
+# GebTyp ist gröber als NutzungArt.
+# Deshalb werden nur fachlich eindeutige Kategorien automatisch gemappt.
+GEBTYP_TO_NPRO = {
+    "EFH": "Wohnen",
+    "RH": "Wohnen",
+    "MFH": "Wohnen",
+    "GMH": "Wohnen",
+
+    "B�ro-, Verwaltungs- oder Amtsgeb�ude": "Büro",
+    "Handelsgeb�ude": "Einzelhandel",
+}
+
+
+COLUMN_TO_NPRO = {
+    "NutzungArt": NUTZUNGART_TO_NPRO,
+    "funktion": FUNKTION_TO_NPRO,
+    "GebTyp": GEBTYP_TO_NPRO,
+}
+
+
 NPRO_TYPES = {
     "Wohnen",
     "Büro",
@@ -117,130 +135,176 @@ NPRO_TYPES = {
 }
 
 
-def _resolve_npro_type(nutzungart, funktion):
-    """Ordnet eine Kombination aus NutzungArt und funktion einem nPro-Typ zu.
-
-    Regeln:
-    - Eindeutige Zuordnung aus NutzungArt oder funktion wird übernommen.
-    - Explizit gemischte Nutzung wird als 'Gemischt' klassifiziert.
-    - Falls beide Felder unterschiedliche eindeutige Typen liefern,
-      wird keine automatische Entscheidung getroffen.
-    - Nicht eindeutig zuordenbare Fälle werden gekennzeichnet.
+def _resolve_npro_type(source_col, category):
     """
-    type_from_nutzung = NUTZUNGART_TO_NPRO.get(nutzungart)
-    type_from_funktion = FUNKTION_TO_NPRO.get(funktion)
+    Quellspaltenspezifische nPro-Zuordnung.
+    """
+    mapping = COLUMN_TO_NPRO.get(
+        source_col,
+        {}
+    )
 
-    # Explizite gemischte Nutzung hat Vorrang.
-    if type_from_nutzung == "Gemischt" or type_from_funktion == "Gemischt":
-        return "Gemischt"
-
-    # Beide Felder liefern dieselbe eindeutige Zuordnung.
-    if type_from_nutzung and type_from_funktion:
-        if type_from_nutzung == type_from_funktion:
-            return type_from_nutzung
-        return UNDECIDED
-
-    # Nur eines der beiden Felder ist eindeutig.
-    if type_from_nutzung:
-        return type_from_nutzung
-    if type_from_funktion:
-        return type_from_funktion
-
-    return UNDECIDED
+    return mapping.get(
+        category,
+        UNDECIDED
+    )
 
 
 def create_npro_type_mapping(
-    gpkg_path,
-    excel_path="npro_type_mapping.xlsx",
-    layer=None,
+        gpkg_path,
+        category_cols,
+        excel_path=None,
+        output_dir="outputs/gebaeudemodell",
+        layer=None,
+        overwrite=False,
 ):
-    """Erstellt ausschließlich eine Mapping-Tabelle aus dem GeoPackage.
+    """
+    Erstellt eine nPro-Mapping-Tabelle für frei wählbare
+    Klassifikationsspalten.
 
-    Das eingelesene GeoDataFrame wird NICHT verändert.
+    Beispiele
+    ---------
+    category_cols=["GebTyp"]
+    category_cols=["GebTyp", "funktion"]
+    category_cols=["NutzungArt", "funktion"]
 
-    Parameters
-    ----------
-    gpkg_path : str | pathlib.Path
-        Pfad zum GeoPackage.
-    excel_path : str | pathlib.Path
-        Zielpfad der Excel-Datei.
-    layer : str | None
-        Optionaler Layername. Bei nur einem Layer kann None verwendet werden.
+    Wird excel_path nicht explizit übergeben, wird der Dateiname
+    automatisch anhand der Spalten erzeugt.
 
-    Returns
-    -------
-    pandas.DataFrame
-        Mapping-Tabelle mit den Spalten:
-        - Gebäudetyp - gdf   (Quelle: NutzungArt)
-        - Funktion - gdf     (Quelle: funktion)
-        - Anzahl - gdf       (Anzahl dieser Kombination im GeoDataFrame)
-        - npro_type
+    overwrite=False schützt eine bereits vorhandene und ggf. manuell
+    bearbeitete Mapping-Datei vor Überschreiben.
     """
     gpkg_path = Path(gpkg_path)
-    excel_path = Path(excel_path)
+    output_dir = Path(output_dir)
 
-    if layer is None:
-        gdf = gpd.read_file(gpkg_path)
+    if isinstance(category_cols, str):
+        category_cols = [category_cols]
+
+    category_cols = list(category_cols)
+
+    tag = make_columns_tag(
+        category_cols
+    )
+
+    if excel_path is None:
+        excel_path = (
+            output_dir
+            / f"npro_type_mapping_{tag}.xlsx"
+        )
     else:
-        gdf = gpd.read_file(gpkg_path, layer=layer)
+        excel_path = Path(excel_path)
 
-    required_columns = {"NutzungArt", "funktion"}
-    missing_columns = required_columns.difference(gdf.columns)
-    if missing_columns:
-        raise KeyError(
-            f"Folgende benötigte Spalten fehlen im GeoPackage: "
-            f"{sorted(missing_columns)}"
+    # ---------------------------------------------------------
+    # Bestehendes Mapping wiederverwenden
+    # ---------------------------------------------------------
+    if excel_path.exists() and not overwrite:
+        print(
+            f"Vorhandene Mapping-Datei wird wiederverwendet:\n"
+            f"{excel_path}"
         )
 
-    # Neue Tabelle erzeugen; das GeoDataFrame selbst bleibt unverändert.
-    # Eine Zeile entspricht einer eindeutigen Kombination aus NutzungArt und
-    # funktion. Zusätzlich wird gezählt, wie oft diese Kombination im GDF vorkommt.
+        return pd.read_excel(
+            excel_path
+        )
+
+    # ---------------------------------------------------------
+    # GeoPackage einlesen
+    # ---------------------------------------------------------
+    if layer is None:
+        gdf = gpd.read_file(
+            gpkg_path
+        )
+    else:
+        gdf = gpd.read_file(
+            gpkg_path,
+            layer=layer
+        )
+
+    data = prepare_category_data(
+        gdf=gdf,
+        category_cols=category_cols
+    )
+
+    # ---------------------------------------------------------
+    # Mapping-Tabelle erzeugen
+    # ---------------------------------------------------------
     mapping_df = (
-        gdf.groupby(["NutzungArt", "funktion"], dropna=False)
-        .size()
-        .reset_index(name="Anzahl - gdf")
-        .rename(
-            columns={
-                "NutzungArt": "Gebäudetyp - gdf",
-                "funktion": "Funktion - gdf",
-            }
+        data
+        .groupby(
+            ["Kategorie", "Quellspalte"],
+            dropna=False
         )
+        .size()
+        .reset_index(
+            name="Anzahl - gdf"
+        )
+    )
+
+    mapping_df = add_source_columns(
+        result=mapping_df,
+        category_cols=category_cols
     )
 
     mapping_df["npro_type"] = mapping_df.apply(
-        lambda row: _resolve_npro_type(
-            row["Gebäudetyp - gdf"],
-            row["Funktion - gdf"],
+        lambda row: (
+            _resolve_npro_type(
+                row["Quellspalte"],
+                row["Kategorie"]
+            )
+            if row["Quellspalte"] != "Keine Zuordnung"
+            else UNDECIDED
         ),
-        axis=1,
+        axis=1
     )
 
-    # Plausibilitätscheck: automatisch vergebene Werte müssen nPro-Typen sein.
-    automatic_types = set(mapping_df["npro_type"]) - {UNDECIDED}
-    invalid_types = automatic_types.difference(NPRO_TYPES)
-    if invalid_types:
-        raise ValueError(f"Ungültige nPro-Typen im Mapping: {sorted(invalid_types)}")
+    # ---------------------------------------------------------
+    # Plausibilitätscheck nPro-Typen
+    # ---------------------------------------------------------
+    automatic_types = (
+        set(mapping_df["npro_type"])
+        - {UNDECIDED}
+    )
 
-    # Gewünschte Spaltenreihenfolge.
+    invalid_types = (
+        automatic_types
+        .difference(NPRO_TYPES)
+    )
+
+    if invalid_types:
+        raise ValueError(
+            f"Ungültige nPro-Typen im Mapping: "
+            f"{sorted(invalid_types)}"
+        )
+
+    source_output_cols = [
+        f"{col} - gdf"
+        for col in category_cols
+    ]
+
     mapping_df = mapping_df[
-        ["Gebäudetyp - gdf", "Funktion - gdf", "Anzahl - gdf", "npro_type"]
+        source_output_cols
+        + [
+            "Anzahl - gdf",
+            "npro_type"
+        ]
     ].reset_index(drop=True)
 
-    # Excel-Ausgabe.
-    excel_path.parent.mkdir(parents=True, exist_ok=True)
-    mapping_df.to_excel(excel_path, index=False)
-
-    return mapping_df
-
-
-if __name__ == "__main__":
-    GPKG_PATH = DEFAULT_GPKG_PATH
-    EXCEL_PATH = "outputs/gebaeudemodell/npro_type_mapping.xlsx"
-
-    df_mapping = create_npro_type_mapping(
-        gpkg_path=GPKG_PATH,
-        excel_path=EXCEL_PATH,
+    # ---------------------------------------------------------
+    # Excel speichern
+    # ---------------------------------------------------------
+    excel_path.parent.mkdir(
+        parents=True,
+        exist_ok=True
     )
 
-    print(df_mapping.to_string(index=False))
-    print(f"\nExcel-Datei geschrieben: {EXCEL_PATH}")
+    mapping_df.to_excel(
+        excel_path,
+        index=False
+    )
+
+    print(
+        f"Mapping-Datei geschrieben:\n"
+        f"{excel_path}"
+    )
+
+    return mapping_df

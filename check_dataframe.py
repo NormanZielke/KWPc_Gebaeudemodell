@@ -233,6 +233,10 @@ def check_dataframe(path, cols):
         cols
     ].copy()
 
+    # GebTyp - Gebäude
+
+    gdf_Geb_Typ = gdf[~gdf["GebTyp"].isna()].copy()
+
     # ==========================================================
     # 9. Prüfung funktion / NutzungArt
     # ==========================================================
@@ -1081,6 +1085,7 @@ def check_dataframe(path, cols):
         "gdf_wohnen": gdf_wohnen,
         "gdf_nicht_wohnen": gdf_nicht_wohnen,
         "gdf_mixed": gdf_mixed,
+        "gdf_Geb_Typ":gdf_Geb_Typ,
 
         # ------------------------------------------------------
         # funktion / NutzungArt
