@@ -199,7 +199,7 @@ def run_variant(
     }
 
 
-def main():
+def Gebäudetypenauswertung():
 
     results = []
 
@@ -266,4 +266,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    Gebäudetypenauswertung()
