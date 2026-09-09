@@ -1166,6 +1166,8 @@ path = (
 
 cols = [
     "GebaeudeID",
+    "StrName",
+    "Hausnummer",
     "GebTyp",
     "NutzungArt",
     "P_th",
@@ -1173,7 +1175,7 @@ cols = [
     "AnzlWhg",
     "Baualter_int",
     "funktion",
-    "Waermebed_",
+    "Etagen",
     "demand_kwh",
     "demand_2035",
     "demand_2045",
@@ -1201,6 +1203,9 @@ gdf_buero = gdf_nicht_wohnen[
     gdf_nicht_wohnen["NutzungArt"] == "B�rogeb�ude"
 ].copy()
 
+gdf_gewerbe = gdf_nicht_wohnen[
+    gdf_nicht_wohnen["NutzungArt"] == "Geb�ude f�r Wirtschaft oder Gewerbe"
+].copy()
 
 print("check")
 
