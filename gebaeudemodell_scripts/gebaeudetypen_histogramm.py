@@ -4,7 +4,7 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from gebaeudetypen_common import (
+from .gebaeudetypen_common import (
     aggregate_categories,
     make_columns_tag,
 )

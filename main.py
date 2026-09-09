@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from create_npro_type_mapping import create_npro_type_mapping
-from gebaeudetypen_common import make_columns_tag
-from gebaeudetypen_histogramm import plot_gebaeudetypen
-from gebaeudetypen_tabelle import create_gebaeudetypen_table
+from gebaeudemodell_scripts.create_npro_type_mapping import create_npro_type_mapping
+from gebaeudemodell_scripts.gebaeudetypen_common import make_columns_tag
+from gebaeudemodell_scripts.gebaeudetypen_histogramm import plot_gebaeudetypen
+from gebaeudemodell_scripts.gebaeudetypen_tabelle import create_gebaeudetypen_table
 
 
 # =============================================================

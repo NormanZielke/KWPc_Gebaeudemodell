@@ -3,7 +3,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from gebaeudetypen_common import (
+from .gebaeudetypen_common import (
     add_source_columns,
     make_columns_tag,
     prepare_category_data,
