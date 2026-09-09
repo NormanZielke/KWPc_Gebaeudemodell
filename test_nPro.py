@@ -1,410 +1,261 @@
-import pandas as pd
-import numpy as np
 from pathlib import Path
-import plotly.graph_objects as go
+
+from test_scripts.test_nPro_peak import run_peak_test
+from test_scripts.test_nPro_demand_kWh import run_demand_test
 
 
-# --------------------------------------------------
-# Einstellungen
-# --------------------------------------------------
+# =============================================================
+# HIER DIE INPUT-PFADE EINSTELLEN
+# =============================================================
 
-DATA_PATH = Path("nPro/ID_1")
+# test_nPro.py liegt direkt im Projekt-Hauptverzeichnis.
+PROJECT_ROOT = Path(__file__).resolve().parent
+
 
 FILES = {
     "59 MWh / 39 kW": (
-        DATA_PATH
+        PROJECT_ROOT
+        / "nPro"
+        / "ID_1"
         / "Lastprofile_Waerme_Einzelhandel_63m2_59MWh_39kW.csv"
     ),
+
     "100 MWh / 67 kW": (
-        DATA_PATH
+        PROJECT_ROOT
+        / "nPro"
+        / "ID_1"
         / "Lastprofile_Waerme_Einzelhandel_63m2_100MWh_67kW.csv"
     ),
+
     "500 MWh / 334 kW": (
-        DATA_PATH
+        PROJECT_ROOT
+        / "nPro"
+        / "ID_1"
         / "Lastprofile_Waerme_Einzelhandel_63m2_500MWh_334kW.csv"
     ),
 }
 
-# Peak-Werte aus den Dateinamen nur als Referenz
+
+# Optional: Peaks aus den Dateinamen nur zur Kontrolle.
+# Die Peak-Normierung selbst verwendet immer das tatsächliche Maximum
+# der jeweiligen CSV-Zeitreihe.
 PEAK_FROM_FILENAME = {
     "59 MWh / 39 kW": 39,
     "100 MWh / 67 kW": 67,
     "500 MWh / 334 kW": 334,
 }
 
+
 TIME_COL = "Zeit (TT-MM hh:mm)"
 HEAT_COL = "Wärme gesamt (kW)"
 
-OUTPUT_PATH = Path("outputs/test_nPro")
+# Stündliche Profile
+DT_HOURS = 1.0
 
-OUTPUT_PATH.mkdir(
-    parents=True,
-    exist_ok=True
+
+# =============================================================
+# OUTPUT
+# =============================================================
+
+OUTPUT_ROOT = (
+    PROJECT_ROOT
+    / "outputs"
+    / "test_nPro"
+)
+
+OUTPUT_PEAK = (
+    OUTPUT_ROOT
+    / "peak"
+)
+
+OUTPUT_DEMAND = (
+    OUTPUT_ROOT
+    / "demand_kWh"
 )
 
 
-# --------------------------------------------------
-# Lastprofile einlesen und normieren
-# --------------------------------------------------
+# HTML wird unabhängig davon gespeichert.
+# True öffnet den Plot zusätzlich im Browser / Plotly-Renderer.
+SHOW_PLOTS = True
 
-profiles = {}
 
-for name, file_path in FILES.items():
+# =============================================================
+# Hilfsfunktionen
+# =============================================================
 
-    if not file_path.exists():
+def check_input_files():
+    """Prüft alle Eingabedateien vor dem Start."""
+
+    missing_files = []
+
+    print("\n" + "=" * 80)
+    print("EINGABEDATEIEN")
+    print("=" * 80)
+
+    for name, file_path in FILES.items():
+        file_path = Path(file_path).resolve()
+
+        print(f"\n{name}")
+        print(f"  {file_path}")
+
+        if file_path.exists():
+            print("  -> gefunden")
+        else:
+            print("  -> NICHT GEFUNDEN")
+            missing_files.append(file_path)
+
+    if missing_files:
+        missing_text = "\n".join(
+            f"  - {file_path}"
+            for file_path in missing_files
+        )
+
         raise FileNotFoundError(
-            f"Datei nicht gefunden:\n{file_path}"
+            "\nFolgende Eingabedateien fehlen:\n"
+            f"{missing_text}"
         )
 
-    df = pd.read_csv(file_path)
 
-    required_cols = [
-        TIME_COL,
-        HEAT_COL,
+def check_created_files(result, test_name):
+    """
+    Prüft nach einem Test explizit, ob die erwarteten Dateien
+    tatsächlich geschrieben wurden.
+    """
+
+    expected_keys = [
+        "comparison_file",
+        "normalized_profiles_file",
+        "interactive_file",
     ]
 
-    missing_cols = [
-        col
-        for col in required_cols
-        if col not in df.columns
-    ]
+    missing = []
 
-    if missing_cols:
-        raise KeyError(
-            f"In {file_path.name} fehlen folgende Spalten:\n"
-            f"{missing_cols}"
+    for key in expected_keys:
+        file_path = Path(result[key]).resolve()
+
+        if not file_path.exists():
+            missing.append(file_path)
+
+    if missing:
+        missing_text = "\n".join(
+            f"  - {file_path}"
+            for file_path in missing
         )
 
-    # Wärmeleistung numerisch machen
-    df[HEAT_COL] = pd.to_numeric(
-        df[HEAT_COL],
-        errors="coerce"
+        raise AssertionError(
+            f"{test_name}: Folgende Ausgabedateien "
+            f"wurden nicht erzeugt:\n{missing_text}"
+        )
+
+
+# =============================================================
+# Pytest-Test 1
+#
+# Weil die Datei "test_nPro.py" heißt, startet PyCharm sie bei dir
+# als pytest-Datei. Diese Funktion wird deshalb von pytest erkannt.
+# =============================================================
+
+def test_peak_normierung():
+
+    check_input_files()
+
+    OUTPUT_PEAK.mkdir(
+        parents=True,
+        exist_ok=True,
     )
 
-    if df[HEAT_COL].isna().any():
-        raise ValueError(
-            f"In {file_path.name} befinden sich "
-            f"nicht numerische Werte in '{HEAT_COL}'."
-        )
-
-    # Zeitachse erzeugen
-    df["datetime"] = pd.to_datetime(
-        "2025-" + df[TIME_COL],
-        format="%Y-%d-%m %H:%M"
+    result = run_peak_test(
+        files=FILES,
+        output_dir=OUTPUT_PEAK,
+        peak_from_filename=PEAK_FROM_FILENAME,
+        time_col=TIME_COL,
+        heat_col=HEAT_COL,
+        show_plot=SHOW_PLOTS,
     )
 
-    # Tatsächliche Peak-Last der Zeitreihe
-    actual_peak_kw = df[HEAT_COL].max()
-
-    if actual_peak_kw <= 0:
-        raise ValueError(
-            f"Ungültige Peak-Last in {file_path.name}: "
-            f"{actual_peak_kw}"
-        )
-
-    # --------------------------------------------------
-    # Normierung
-    #
-    # Maximum jedes Profils wird exakt 1
-    # --------------------------------------------------
-
-    df["heat_normalized"] = (
-        df[HEAT_COL]
-        / actual_peak_kw
+    check_created_files(
+        result=result,
+        test_name="Peak-Normierung",
     )
 
-    profiles[name] = {
-        "df": df,
-        "actual_peak_kw": actual_peak_kw,
-        "filename_peak_kw": PEAK_FROM_FILENAME[name],
-    }
+
+# =============================================================
+# Pytest-Test 2
+# =============================================================
+
+def test_jahresbedarf_normierung():
+
+    check_input_files()
+
+    OUTPUT_DEMAND.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    result = run_demand_test(
+        files=FILES,
+        output_dir=OUTPUT_DEMAND,
+        dt_hours=DT_HOURS,
+        time_col=TIME_COL,
+        heat_col=HEAT_COL,
+        show_plot=SHOW_PLOTS,
+    )
+
+    check_created_files(
+        result=result,
+        test_name="Jahresbedarfs-Normierung",
+    )
 
 
-# --------------------------------------------------
-# Zeitachsen prüfen
-# --------------------------------------------------
+# =============================================================
+# Optional: normales Starten als Python-Skript
+#
+# Wenn du test_nPro.py über "Run as Python" startest,
+# werden ebenfalls beide Tests nacheinander ausgeführt.
+# =============================================================
 
-reference_name = list(profiles.keys())[0]
-reference_df = profiles[reference_name]["df"]
+def main():
 
-for name, profile in profiles.items():
-
-    df = profile["df"]
-
-    if len(df) != len(reference_df):
-        raise ValueError(
-            f"Unterschiedliche Anzahl an Zeitschritten:\n"
-            f"{reference_name}: {len(reference_df)}\n"
-            f"{name}: {len(df)}"
-        )
-
-    if not df[TIME_COL].equals(
-        reference_df[TIME_COL]
-    ):
-        raise ValueError(
-            f"Die Zeitachsen von '{reference_name}' "
-            f"und '{name}' stimmen nicht überein."
-        )
-
-
-# --------------------------------------------------
-# Peak-Werte ausgeben
-# --------------------------------------------------
-
-print("\n" + "=" * 70)
-print("PEAK-LASTEN")
-print("=" * 70)
-
-for name, profile in profiles.items():
-
-    actual = profile["actual_peak_kw"]
-    filename_peak = profile["filename_peak_kw"]
-
-    difference = actual - filename_peak
+    print("\n" + "=" * 80)
+    print("nPro Lastprofil-Tests")
+    print("=" * 80)
 
     print(
-        f"\n{name}"
-        f"\n  Peak laut Dateiname: {filename_peak:.3f} kW"
-        f"\n  tatsächlicher Peak:  {actual:.6f} kW"
-        f"\n  Differenz:            {difference:.6f} kW"
-    )
-
-
-# --------------------------------------------------
-# Vergleich der normierten Profile
-# --------------------------------------------------
-
-profile_names = list(profiles.keys())
-
-comparison_results = []
-
-print("\n" + "=" * 70)
-print("VERGLEICH DER NORMIERTEN PROFILE")
-print("=" * 70)
-
-for i in range(len(profile_names)):
-
-    for j in range(
-        i + 1,
-        len(profile_names)
-    ):
-
-        name_1 = profile_names[i]
-        name_2 = profile_names[j]
-
-        values_1 = profiles[
-            name_1
-        ]["df"]["heat_normalized"].to_numpy()
-
-        values_2 = profiles[
-            name_2
-        ]["df"]["heat_normalized"].to_numpy()
-
-        difference = (
-            values_1
-            - values_2
-        )
-
-        max_abs_difference = (
-            np.max(
-                np.abs(difference)
-            )
-        )
-
-        mean_abs_difference = (
-            np.mean(
-                np.abs(difference)
-            )
-        )
-
-        rmse = np.sqrt(
-            np.mean(
-                difference ** 2
-            )
-        )
-
-        identical = np.allclose(
-            values_1,
-            values_2,
-            rtol=1e-8,
-            atol=1e-10
-        )
-
-        comparison_results.append({
-            "Profil 1": name_1,
-            "Profil 2": name_2,
-            "Max. absolute Abweichung":
-                max_abs_difference,
-            "Mittlere absolute Abweichung":
-                mean_abs_difference,
-            "RMSE":
-                rmse,
-            "Identisch":
-                identical,
-        })
-
-        print(
-            f"\n{name_1}"
-            f"\nvs."
-            f"\n{name_2}"
-        )
-
-        print(
-            f"  Max. absolute Abweichung: "
-            f"{max_abs_difference:.12f}"
-        )
-
-        print(
-            f"  Mittlere absolute Abweichung: "
-            f"{mean_abs_difference:.12f}"
-        )
-
-        print(
-            f"  RMSE: "
-            f"{rmse:.12f}"
-        )
-
-        print(
-            f"  Profile identisch: "
-            f"{identical}"
-        )
-
-
-# --------------------------------------------------
-# Gesamtergebnis
-# --------------------------------------------------
-
-comparison_df = pd.DataFrame(
-    comparison_results
-)
-
-all_identical = (
-    comparison_df["Identisch"].all()
-)
-
-print("\n" + "=" * 70)
-
-if all_identical:
-
-    print(
-        "ERGEBNIS: Alle drei normierten Profile "
-        "sind identisch."
+        f"\nProjekt-Hauptverzeichnis:\n"
+        f"{PROJECT_ROOT}"
     )
 
     print(
-        "Der angegebene Jahreswärmebedarf verändert "
-        "damit in diesem Test NICHT die Form "
-        "des Lastprofils."
+        f"\nAusgabe-Hauptverzeichnis:\n"
+        f"{OUTPUT_ROOT.resolve()}"
     )
 
-else:
+    print("\n" + "#" * 80)
+    print("# TEST 1: PEAK-NORMIERUNG")
+    print("#" * 80)
+
+    test_peak_normierung()
+
+    print("\n" + "#" * 80)
+    print("# TEST 2: NORMIERUNG ÜBER JAHRESWÄRMEBEDARF")
+    print("#" * 80)
+
+    test_jahresbedarf_normierung()
+
+    print("\n" + "=" * 80)
+    print("ALLE nPro-TESTS ERFOLGREICH ABGESCHLOSSEN")
+    print("=" * 80)
 
     print(
-        "ERGEBNIS: Die normierten Profile "
-        "sind NICHT identisch."
+        f"\nPeak-Ausgaben:\n"
+        f"{OUTPUT_PEAK.resolve()}"
     )
 
     print(
-        "Der Jahreswärmebedarf und/oder ein anderer "
-        "nPro-Parameter beeinflusst damit die "
-        "Form des erzeugten Lastprofils."
-    )
-
-print("=" * 70)
-
-
-# --------------------------------------------------
-# Vergleichsergebnisse speichern
-# --------------------------------------------------
-
-comparison_file = (
-    OUTPUT_PATH
-    / "Vergleich_normierte_Lastprofile.csv"
-)
-
-comparison_df.to_csv(
-    comparison_file,
-    index=False
-)
-
-
-# --------------------------------------------------
-# Interaktiver Plot
-# --------------------------------------------------
-
-fig = go.Figure()
-
-for name, profile in profiles.items():
-
-    df = profile["df"]
-
-    fig.add_trace(
-        go.Scatter(
-            x=df["datetime"],
-            y=df["heat_normalized"],
-            mode="lines",
-            name=name
-        )
+        f"\nJahresbedarfs-Ausgaben:\n"
+        f"{OUTPUT_DEMAND.resolve()}"
     )
 
 
-fig.update_layout(
-    title=(
-         "Vergleich normierter nPro-Wärmelastprofile – Einzelhandel, 63 m²"
-        "<br>"
-        "Jahreswärmebedarf jeweils vorgegeben: 59 MWh/a, 100 MWh/a und 500 MWh/a"
-    ),
-    xaxis_title="Zeit",
-    yaxis_title="Normierte Wärmeleistung [-]",
-    hovermode="x unified",
-    template="plotly_white",
-)
-
-
-# --------------------------------------------------
-# Zoom / Navigationsleiste
-# --------------------------------------------------
-
-fig.update_xaxes(
-    rangeslider_visible=True
-)
-
-
-# --------------------------------------------------
-# HTML speichern
-# --------------------------------------------------
-
-interactive_file = (
-    OUTPUT_PATH
-    / "Vergleich_normierte_Lastprofile_interaktiv.html"
-)
-
-fig.write_html(
-    interactive_file
-)
-
-
-# --------------------------------------------------
-# Plot anzeigen
-# --------------------------------------------------
-
-fig.show()
-
-
-# --------------------------------------------------
-# Speicherorte ausgeben
-# --------------------------------------------------
-
-print(
-    "\nErgebnisse gespeichert unter:"
-)
-
-print(
-    f"  Vergleichstabelle:\n"
-    f"  {comparison_file}"
-)
-
-print(
-    f"\n  Interaktiver Plot:\n"
-    f"  {interactive_file}"
-)
+if __name__ == "__main__":
+    main()
