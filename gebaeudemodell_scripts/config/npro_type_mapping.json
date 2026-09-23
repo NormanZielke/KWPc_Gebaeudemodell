@@ -1,0 +1,47 @@
+{
+  "NutzungArt_und_funktion": {
+    "Wohngebäude": "Wohnen",
+    "Wohnhaus": "Wohnen",
+    "Wohnheim": "Wohnen",
+    "Wochenendhaus": "Wohnen",
+
+    "Verwaltungsgebäude": "Büro",
+    "Rathaus": "Büro",
+    "Bürogebäude": "Büro",
+    "Kreditinstitut": "Büro",
+
+    "Allgemein bildende Schule": "Schule",
+    "Kinderkrippe, Kindergarten, Kindertagesstätte": "Kindergarten",
+
+    "Hotel, Motel, Pension": "Hotel",
+    "Gebäude für Beherbergung": "Hotel",
+
+    "Gaststätte, Restaurant": "Restaurant",
+    "Gebäude für Bewirtung": "Restaurant",
+
+    "Garage": "Parkhaus",
+    "Tiefgarage": "Parkhaus",
+    "Gebäude zum Parken": "Parkhaus",
+
+    "Sport-, Turnhalle": "Sporthalle",
+
+    "Lagerhalle, Lagerschuppen, Lagerhaus": "Lagerhalle",
+    "Gebäude für Vorratshaltung": "Lagerhalle",
+
+    "Kirche": "Kirche",
+    "Gebäude für religiöse Zwecke": "Kirche",
+    "Kapelle": "Kirche",
+
+    "Einkaufszentrum": "Einkaufszentrum",
+    "Produktionsgebäude": "Produktion",
+
+    "Wohngebäude mit Gewerbe und Industrie": "Gemischt",
+    "Wohngebäude mit Handel und Dienstleistungen": "Gemischt",
+    "Gebäude für Gewerbe und Industrie mit Wohnen": "Gemischt",
+    "Gebäude für Handel und Dienstleistung mit Wohnen": "Gemischt",
+    "Wohn- und Geschäftsgebäude": "Gemischt",
+    "Wohngebäude mit Gemeinbedarf": "Gemischt",
+
+    "Sonstiges": "Sonstiges"
+  }
+}

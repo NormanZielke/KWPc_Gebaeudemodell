@@ -80,7 +80,7 @@ THRESHOLDS = (
 )
 
 
-# Vorhandene Mapping-Dateien wiederverwenden
+# Vorhandene Mapping-Dateien überschreiben?
 RECREATE_MAPPING = False
 
 

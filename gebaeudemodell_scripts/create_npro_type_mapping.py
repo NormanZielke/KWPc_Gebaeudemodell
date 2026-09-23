@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import geopandas as gpd
 import pandas as pd
@@ -9,13 +10,17 @@ from .gebaeudetypen_common import (
     prepare_category_data,
 )
 
-
-UNDECIDED = "muss fachlich entschieden werden"
-
-
 # =============================================================
 # nPro-Zuordnungen je Quellspalte
 # =============================================================
+
+NPRO_MAPPING_PATH = (
+    Path(__file__).parent
+    / "config"
+    / "npro_type_mapping.json"
+)
+
+UNDECIDED = "muss fachlich entschieden werden"
 
 NUTZUNGART_TO_NPRO = {
     # Wohnen
@@ -150,6 +155,37 @@ def _resolve_npro_type(source_col, category):
     )
 
 
+def load_npro_mapping(
+        mapping_path=NPRO_MAPPING_PATH
+):
+    """
+    Lädt die nPro-Zuordnungen aus der JSON-Datei.
+    """
+
+    mapping_path = Path(
+        mapping_path
+    )
+
+    if not mapping_path.exists():
+
+        raise FileNotFoundError(
+            "nPro-Mapping-Datei nicht gefunden:\n"
+            f"{mapping_path}"
+        )
+
+    with open(
+        mapping_path,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        mapping = json.load(
+            file
+        )
+
+    return mapping
+
+
 def create_npro_type_mapping(
         gpkg_path,
         category_cols,
@@ -245,17 +281,63 @@ def create_npro_type_mapping(
         category_cols=category_cols
     )
 
-    mapping_df["npro_type"] = mapping_df.apply(
-        lambda row: (
-            _resolve_npro_type(
-                row["Quellspalte"],
-                row["Kategorie"]
+    # ---------------------------------------------------------
+    # nPro-Typ bestimmen
+    # ---------------------------------------------------------
+
+    npro_mapping = load_npro_mapping()
+
+    if len(category_cols) == 1 and category_cols[0] in npro_mapping:
+
+        category_col = category_cols[0]
+
+        # Mapping aus JSON
+        mapping_df["npro_type"] = (
+            mapping_df["Kategorie"]
+            .map(
+                lambda category:
+                resolve_npro_type_from_json(
+                    category=category,
+                    category_col=category_col,
+                    mapping=npro_mapping
+                )
             )
-            if row["Quellspalte"] != "Keine Zuordnung"
-            else UNDECIDED
-        ),
-        axis=1
-    )
+        )
+
+    else:
+
+        # Bisherige Mapping-Logik für die Rohdatenvarianten
+        mapping_df["npro_type"] = mapping_df.apply(
+            lambda row: (
+                _resolve_npro_type(
+                    row["Quellspalte"],
+                    row["Kategorie"]
+                )
+                if row["Quellspalte"] != "Keine Zuordnung"
+                else UNDECIDED
+            ),
+            axis=1
+        )
+
+    unmapped = mapping_df[
+        mapping_df["npro_type"] == UNDECIDED
+        ]
+
+    if not unmapped.empty:
+        print(
+            "\nNicht automatisch zugeordnete Gebäudetypen:"
+        )
+
+        print(
+            unmapped[
+                [
+                    "Kategorie",
+                    "Anzahl - gdf"
+                ]
+            ].to_string(
+                index=False
+            )
+        )
 
     # ---------------------------------------------------------
     # Plausibilitätscheck nPro-Typen
@@ -308,3 +390,27 @@ def create_npro_type_mapping(
     )
 
     return mapping_df
+
+
+def resolve_npro_type_from_json(
+        category,
+        category_col,
+        mapping
+):
+    """
+    Bestimmt den nPro-Typ anhand der ausgewählten
+    Gebäudekategorie.
+    """
+
+    if pd.isna(category):
+        return UNDECIDED
+
+    column_mapping = mapping.get(
+        category_col,
+        {}
+    )
+
+    return column_mapping.get(
+        category,
+        UNDECIDED
+    )
