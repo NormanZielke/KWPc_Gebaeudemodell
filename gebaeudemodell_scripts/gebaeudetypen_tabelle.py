@@ -316,6 +316,29 @@ def create_gebaeudetypen_table(
         )
 
     # ---------------------------------------------------------
+    # Zahlenwerte für Excel-Ausgabe runden
+    # ---------------------------------------------------------
+    output["Wärmebedarf [GWh/a]"] = (
+        output["Wärmebedarf [GWh/a]"]
+        .round(2)
+    )
+
+    output["Anteil Wärmebedarf [%]"] = (
+        output["Anteil Wärmebedarf [%]"]
+        .round(3)
+    )
+
+    output["Wärmebedarf_kumuliert [GWh/a]"] = (
+        output["Wärmebedarf_kumuliert [GWh/a]"]
+        .round(2)
+    )
+
+    output["Kumulierter Anteil Wärmebedarf [%]"] = (
+        output["Kumulierter Anteil Wärmebedarf [%]"]
+        .round(3)
+    )
+
+    # ---------------------------------------------------------
     # Excel speichern
     # ---------------------------------------------------------
     output.to_excel(
