@@ -89,14 +89,9 @@ def run_gebaeudeauswertung(
     # ---------------------------------------------------------
     # Dateipfade
     # ---------------------------------------------------------
-    mapping_path = (
-        variant_output_dir
-        / f"npro_type_mapping_{tag}.xlsx"
-    )
-
-    table_output_path = (
-        variant_output_dir
-        / f"gebaeudetypen_auswertung_kumuliert_{tag}.xlsx"
+    table_path = (
+            variant_output_dir
+            / f"gebaeudetypen_auswertung_kumuliert_{tag}.xlsx"
     )
 
     print(
@@ -124,7 +119,7 @@ def run_gebaeudeauswertung(
     mapping_result = create_npro_type_mapping(
         gpkg_path=gpkg_path,
         category_cols=category_cols,
-        excel_path=mapping_path,
+        excel_path=table_path,
         layer=layer,
         overwrite=recreate_mapping
     )
@@ -147,8 +142,8 @@ def run_gebaeudeauswertung(
     table_result = create_gebaeudetypen_table(
         path=gpkg_path,
         category_cols=category_cols,
-        mapping_path=mapping_path,
-        output_path=table_output_path,
+        mapping_path=table_path,
+        output_path=table_path,
         layer=layer,
         demand_col=demand_col,
         thresholds=thresholds
@@ -160,8 +155,8 @@ def run_gebaeudeauswertung(
     return {
         "tag": tag,
         "output_dir": variant_output_dir,
-        "mapping_path": mapping_path,
-        "table_path": table_output_path,
+        "mapping_path": table_path,
+        "table_path": table_path,
         "plot_dir": plot_output_dir,
         "mapping_result": mapping_result,
         "plot_result": plot_result,

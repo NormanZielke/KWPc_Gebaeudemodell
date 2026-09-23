@@ -81,7 +81,7 @@ THRESHOLDS = (
 
 
 # Vorhandene Mapping-Dateien wiederverwenden
-RECREATE_MAPPING = False
+RECREATE_MAPPING = True
 
 
 # =============================================================
