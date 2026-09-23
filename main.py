@@ -1,7 +1,10 @@
 from pathlib import Path
 
 from gebaeudeauswertung import run_gebaeudeauswertung
-from gebaeudemodell_scripts.gebaeudedaten_aufbereitung import prepare_gebaeudemodell
+from gebaeudemodell_scripts.gebaeudedaten_aufbereitung import (
+    prepare_gebaeudemodell,
+    analyse_nutzungart_encoding,
+)
 
 # =============================================================
 # INPUT
@@ -93,4 +96,13 @@ if __name__ == "__main__":
             input_path=GPKG_PATH,
             output_path=PREPARED_GPKG_PATH,
             layer=LAYER
+        )
+
+        # ---------------------------------------------------------
+        # 3. Encoding-Probleme in NutzungArt analysieren
+        # ---------------------------------------------------------
+        analyse_nutzungart_encoding(
+            path=PREPARED_GPKG_PATH,
+            layer=LAYER,
+            column="NutzungArt"
         )

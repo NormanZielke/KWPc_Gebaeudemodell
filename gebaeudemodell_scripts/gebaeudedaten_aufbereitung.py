@@ -46,6 +46,7 @@ def prepare_gebaeudemodell(
     # ---------------------------------------------------------
     gdf_prepared.to_file(
         output_path,
+        layer=layer,
         driver="GPKG"
     )
 
@@ -55,3 +56,105 @@ def prepare_gebaeudemodell(
     )
 
     return output_path
+
+
+def analyse_nutzungart_encoding(
+        path,
+        layer=None,
+        column="NutzungArt"
+):
+    """
+    Sucht in einer Spalte nach dem Unicode-Ersatzzeichen '�'
+    und gibt alle betroffenen Kategorien mit ihrer Häufigkeit aus.
+
+    Es werden noch keine Daten verändert.
+    """
+
+    path = Path(path)
+
+    # ---------------------------------------------------------
+    # Daten einlesen
+    # ---------------------------------------------------------
+    if layer is None:
+        gdf = gpd.read_file(path)
+    else:
+        gdf = gpd.read_file(
+            path,
+            layer=layer
+        )
+
+    # ---------------------------------------------------------
+    # Spalte prüfen
+    # ---------------------------------------------------------
+    if column not in gdf.columns:
+        raise KeyError(
+            f"Spalte '{column}' nicht im Gebäudemodell gefunden."
+        )
+
+    # ---------------------------------------------------------
+    # Problematische Werte finden
+    # ---------------------------------------------------------
+    mask = (
+        gdf[column]
+        .astype("string")
+        .str.contains(
+            "�",
+            regex=False,
+            na=False
+        )
+    )
+
+    problematic_values = (
+        gdf.loc[
+            mask,
+            column
+        ]
+        .value_counts()
+        .rename_axis(column)
+        .reset_index(name="Anzahl")
+    )
+
+    # ---------------------------------------------------------
+    # Ausgabe
+    # ---------------------------------------------------------
+    print(
+        "\n"
+        "============================================================"
+    )
+
+    print(
+        f"Encoding-Prüfung: {column}"
+    )
+
+    print(
+        "============================================================"
+    )
+
+    print(
+        f"Betroffene Gebäude: {mask.sum()}"
+    )
+
+    print(
+        f"Unterschiedliche problematische Werte: "
+        f"{len(problematic_values)}"
+    )
+
+    if problematic_values.empty:
+
+        print(
+            "\nKeine problematischen Encoding-Werte gefunden."
+        )
+
+    else:
+
+        print(
+            "\nProblematische Werte:"
+        )
+
+        print(
+            problematic_values.to_string(
+                index=False
+            )
+        )
+
+    return problematic_values
