@@ -1159,9 +1159,10 @@ def check_dataframe(path, cols):
 # ==============================================================
 
 path = (
-    "1_Rohdaten/HN/HN-Gebäudemodell/"
-    "HN-Gebäudemodell_04_08_2026/"
-    "260728_Gebäudemodell_HohenNeuendorf.gpkg"
+    #"1_Rohdaten/HN/HN-Gebäudemodell/"
+    #"HN-Gebäudemodell_04_08_2026/"
+    #"260728_Gebäudemodell_HohenNeuendorf.gpkg"
+    "2_Datenaufbereitung/HN/HN-Gebäudemodell/260728_Gebäudemodell_HohenNeuendorf_preprocessed.gpkg"
 )
 
 cols = [

@@ -1,0 +1,309 @@
+Analyse der Datenquellen des HN-Gebäudemodells
+Erstellt: 2026-09-22 15:45:41
+
+Hinweis: Die Analyse verändert keine der drei Rohdateien.
+HN-only-Spalten werden nicht automatisch als vom Planungsbüro selbst erzeugt interpretiert. Sie können auch aus weiteren, hier nicht vorliegenden Datenquellen stammen.
+
+================================================================================
+1. Übersicht der Datensätze
+================================================================================
+
+HN-Gebäudemodell
+----------------
+Layer: gebudemodell_final_28042026_saniert
+Objekte: 11,829
+Spalten inkl. Geometrie: 48
+Geometrietypen: MultiPolygon
+CRS: EPSG:25833
+
+Wärmekataster
+-------------
+Layer: WK_EG_HN
+Objekte: 18,265
+Spalten inkl. Geometrie: 30
+Geometrietypen: Polygon
+CRS: EPSG:25833
+
+ALKIS
+-----
+Layer: alkis_eg_hn
+Objekte: 35,284
+Spalten inkl. Geometrie: 12
+Geometrietypen: MultiPolygon
+CRS: EPSG:25833
+
+================================================================================
+2. Spaltenschemata
+================================================================================
+
+HN-Gebäudemodell:
+  - GebaeudeID
+  - StrName
+  - Hausnummer
+  - Stadtteil
+  - PLZ
+  - Gemeinde
+  - AGS
+  - Landkreis
+  - Flur
+  - Flurstueck
+  - Gemarkung
+  - BauAltKl
+  - GebTyp
+  - NutzungArt
+  - AnzlWhg
+  - SolarPot_k
+  - Waermebed_
+  - ETraeger1
+  - ETraeger2
+  - HzngTec1
+  - HzngTec2
+  - EndEVer_RW
+  - EndEVer_kw
+  - CO2_RW_tco
+  - CO2_tco2_a
+  - Datenquali
+  - gemeinde_n
+  - Etagen
+  - funktion
+  - heating_carrier
+  - Bedarf_katatster
+  - Nutzung
+  - Baualter_int
+  - komm
+  - sector
+  - demand_kwh
+  - denkmal
+  - hoehe_korr
+  - etagen_fin
+  - nutzflaeche_korr
+  - P_th
+  - demand_spec
+  - demand_2030
+  - demand_2035
+  - demand_2040
+  - demand_2045
+  - demand_spec_san
+  - geometry
+
+Wärmekataster:
+  - GebaeudeID
+  - StrName
+  - Hausnummer
+  - Stadtteil
+  - PLZ
+  - Gemeinde
+  - AGS
+  - Landkreis
+  - Flur
+  - Flurstueck
+  - Gemarkung
+  - GrundFl_qm
+  - BruGeschFl_qm
+  - BauAltKl
+  - GebTyp
+  - NutzungArt
+  - AnzlWhg
+  - SolarPot_kwh_a
+  - Waermebed_kwh_a
+  - ETraeger1
+  - ETraeger2
+  - HzngTec1
+  - HzngTec2
+  - EndEVer_RW_kwh_a
+  - EndEVer_kwh_a
+  - CO2_RW_tco2_a
+  - CO2_tco2_a
+  - Datenqualitaet
+  - gemeinde_name
+  - geometry
+
+ALKIS:
+  - identifier
+  - oid
+  - aktualit
+  - gebnutzbez
+  - funktion
+  - gfkzshh
+  - rellage
+  - name
+  - anzahlgs
+  - gmdschl
+  - lagebeztxt
+  - geometry
+
+================================================================================
+3. Einfache Quellenzuordnung im HN-Gebäudemodell
+================================================================================
+Gesamtzahl HN-Gebäude: 11,829
+NutzungArt belegt / funktion leer -> WK: 9,550
+funktion belegt / NutzungArt leer -> ALKIS: 2,279
+Beide Spalten belegt: 0
+Beide Spalten leer: 0
+
+Interpretation:
+Die beiden Spalten sind im HN-Modell vollständig komplementär belegt.
+
+================================================================================
+4. Spalten mit direkter Entsprechung im Wärmekataster
+================================================================================
+GebaeudeID           <- GebaeudeID                [gleicher Name; HN vorhanden, WK vorhanden]
+StrName              <- StrName                   [gleicher Name; HN vorhanden, WK vorhanden]
+Hausnummer           <- Hausnummer                [gleicher Name; HN vorhanden, WK vorhanden]
+Stadtteil            <- Stadtteil                 [gleicher Name; HN vorhanden, WK vorhanden]
+PLZ                  <- PLZ                       [gleicher Name; HN vorhanden, WK vorhanden]
+Gemeinde             <- Gemeinde                  [gleicher Name; HN vorhanden, WK vorhanden]
+AGS                  <- AGS                       [gleicher Name; HN vorhanden, WK vorhanden]
+Landkreis            <- Landkreis                 [gleicher Name; HN vorhanden, WK vorhanden]
+Flur                 <- Flur                      [gleicher Name; HN vorhanden, WK vorhanden]
+Flurstueck           <- Flurstueck                [gleicher Name; HN vorhanden, WK vorhanden]
+Gemarkung            <- Gemarkung                 [gleicher Name; HN vorhanden, WK vorhanden]
+BauAltKl             <- BauAltKl                  [gleicher Name; HN vorhanden, WK vorhanden]
+GebTyp               <- GebTyp                    [gleicher Name; HN vorhanden, WK vorhanden]
+NutzungArt           <- NutzungArt                [gleicher Name; HN vorhanden, WK vorhanden]
+AnzlWhg              <- AnzlWhg                   [gleicher Name; HN vorhanden, WK vorhanden]
+SolarPot_k           <- SolarPot_kwh_a            [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+Waermebed_           <- Waermebed_kwh_a           [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+ETraeger1            <- ETraeger1                 [gleicher Name; HN vorhanden, WK vorhanden]
+ETraeger2            <- ETraeger2                 [gleicher Name; HN vorhanden, WK vorhanden]
+HzngTec1             <- HzngTec1                  [gleicher Name; HN vorhanden, WK vorhanden]
+HzngTec2             <- HzngTec2                  [gleicher Name; HN vorhanden, WK vorhanden]
+EndEVer_RW           <- EndEVer_RW_kwh_a          [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+EndEVer_kw           <- EndEVer_kwh_a             [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+CO2_RW_tco           <- CO2_RW_tco2_a             [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+CO2_tco2_a           <- CO2_tco2_a                [gleicher Name; HN vorhanden, WK vorhanden]
+Datenquali           <- Datenqualitaet            [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+gemeinde_n           <- gemeinde_name             [umbenannt/gekürzt; HN vorhanden, WK vorhanden]
+
+================================================================================
+5. Spalten, die erst im HN-Gebäudemodell auftreten
+================================================================================
+Diese Spalten besitzen keine direkte Entsprechung in den beiden bereitgestellten Rohdatensätzen (WK bzw. ALKIS):
+
+  - Baualter_int
+  - Bedarf_katatster
+  - Etagen
+  - Nutzung
+  - P_th
+  - demand_2030
+  - demand_2035
+  - demand_2040
+  - demand_2045
+  - demand_kwh
+  - demand_spec
+  - demand_spec_san
+  - denkmal
+  - etagen_fin
+  - heating_carrier
+  - hoehe_korr
+  - komm
+  - nutzflaeche_korr
+  - sector
+
+Sie wurden daher entweder durch die Weiterverarbeitung erzeugt/berechnet oder aus einer weiteren Datenquelle ergänzt.
+
+================================================================================
+6. WK-Spalten ohne direkte Zielspalte im HN-Modell
+================================================================================
+  - BruGeschFl_qm
+  - GrundFl_qm
+
+================================================================================
+7. ALKIS-Spalten ohne direkte Zielspalte im HN-Modell
+================================================================================
+  - aktualit
+  - anzahlgs
+  - gebnutzbez
+  - gfkzshh
+  - gmdschl
+  - identifier
+  - lagebeztxt
+  - name
+  - oid
+  - rellage
+
+================================================================================
+8. Prüfung der WK-Herkunft über GebaeudeID
+================================================================================
+HN-WK-Gebäude mit GebaeudeID im Wärmekataster: 9,550 / 9,550 (100.00 %)
+Eindeutige NutzungArt-Kategorien im HN-WK-Anteil: 39
+Eindeutige NutzungArt-Kategorien im gesamten WK: 43
+
+================================================================================
+9. Geometrieprüfung HN <-> Wärmekataster
+================================================================================
+Topologisch gleiche Geometrie bei identischer GebaeudeID: 9,520 / 9,550 (99.69 %)
+
+================================================================================
+10. Vergleich der WK-Attribute mit dem HN-Modell
+================================================================================
+Verglichen werden nur die HN-Gebäude, die über 'NutzungArt' der Quelle WK zugeordnet wurden.
+Encodingprobleme werden dabei bewusst NICHT korrigiert.
+
+StrName              <- StrName                  : 2,282 / 9,550 =  23.90 %
+Hausnummer           <- Hausnummer               : 9,550 / 9,550 = 100.00 %
+Stadtteil            <- Stadtteil                : 9,550 / 9,550 = 100.00 %
+PLZ                  <- PLZ                      : 9,550 / 9,550 = 100.00 %
+Gemeinde             <- Gemeinde                 : 9,550 / 9,550 = 100.00 %
+AGS                  <- AGS                      : 9,550 / 9,550 = 100.00 %
+Landkreis            <- Landkreis                : 9,550 / 9,550 = 100.00 %
+Flur                 <- Flur                     : 9,550 / 9,550 = 100.00 %
+Flurstueck           <- Flurstueck               : 9,343 / 9,550 =  97.83 %
+Gemarkung            <- Gemarkung                : 9,550 / 9,550 = 100.00 %
+BauAltKl             <- BauAltKl                 : 9,550 / 9,550 = 100.00 %
+GebTyp               <- GebTyp                   : 8,960 / 9,550 =  93.82 %
+NutzungArt           <- NutzungArt               : 8,879 / 9,550 =  92.97 %
+AnzlWhg              <- AnzlWhg                  : 9,028 / 9,550 =  94.53 %
+SolarPot_k           <- SolarPot_kwh_a           : 9,550 / 9,550 = 100.00 %
+Waermebed_           <- Waermebed_kwh_a          :     0 / 9,550 =   0.00 %
+ETraeger1            <- ETraeger1                : 9,550 / 9,550 = 100.00 %
+ETraeger2            <- ETraeger2                : 9,550 / 9,550 = 100.00 %
+HzngTec1             <- HzngTec1                 : 8,285 / 9,550 =  86.75 %
+HzngTec2             <- HzngTec2                 : 9,550 / 9,550 = 100.00 %
+EndEVer_RW           <- EndEVer_RW_kwh_a         : 9,550 / 9,550 = 100.00 %
+EndEVer_kw           <- EndEVer_kwh_a            : 9,550 / 9,550 = 100.00 %
+CO2_RW_tco           <- CO2_RW_tco2_a            : 9,550 / 9,550 = 100.00 %
+CO2_tco2_a           <- CO2_tco2_a               : 9,550 / 9,550 = 100.00 %
+Datenquali           <- Datenqualitaet           : 9,550 / 9,550 = 100.00 %
+gemeinde_n           <- gemeinde_name            : 9,550 / 9,550 = 100.00 %
+
+================================================================================
+11. Prüfung der ALKIS-Herkunft über funktion
+================================================================================
+Eindeutige funktion-Kategorien im HN-ALKIS-Anteil: 38
+Eindeutige funktion-Kategorien im gesamten ALKIS: 95
+HN-funktion-Kategorien, die auch in ALKIS vorkommen: 38 / 38 (100.00 %)
+
+================================================================================
+12. Geometrieprüfung HN <-> ALKIS
+================================================================================
+Da HN und ALKIS keine gemeinsame Gebäude-ID besitzen, wird hier nur geprüft, ob eine geometrisch identische Gebäudegeometrie in ALKIS vorhanden ist.
+HN-ALKIS-Gebäude mit identischer ALKIS-Geometrie: 2,258 / 2,279 (99.08 %)
+Davon mit gleicher funktion: 2,233 / 2,258 (98.89 %)
+
+================================================================================
+13. Test berechneter Spalten
+================================================================================
+
+13.1 Etagen = round(BruGeschFl_qm / GrundFl_qm)
+Übereinstimmung: 9,550 / 9,550 (100.00 %)
+
+13.2 Bedarf_katatster = Waermebed_
+Übereinstimmung: 11,823 / 11,823 (100.00 %)
+
+13.3 demand_spec = demand_kwh / nutzflaeche_korr
+Übereinstimmung: 11,829 / 11,829 (100.00 %)
+
+13.4 demand_2045 = demand_spec_san * nutzflaeche_korr
+Übereinstimmung: 11,829 / 11,829 (100.00 %)
+
+================================================================================
+14. Zusammenfassung
+================================================================================
+Auf Basis der vorhandenen drei GeoPackages wird folgende Arbeitshypothese geprüft:
+
+  NutzungArt belegt -> Gebäude basiert auf Wärmekataster (WK)
+  funktion belegt   -> Gebäude basiert auf ALKIS
+
+Spalten, die weder im bereitgestellten WK noch im bereitgestellten ALKIS vorkommen, sind als Weiterverarbeitung bzw. zusätzliche Quelle zu behandeln.
+Aus der bloßen Abwesenheit in WK/ALKIS kann jedoch nicht geschlossen werden, dass diese Information vom Planungsbüro selbst erzeugt wurde.
