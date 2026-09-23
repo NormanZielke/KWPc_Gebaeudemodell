@@ -7,6 +7,8 @@ from gebaeudemodell_scripts.gebaeudedaten_aufbereitung import (
     analyse_nutzungart_encoding,
 )
 
+from test_scripts.test import check_prepared_geodataframe
+
 # =============================================================
 # INPUT
 # =============================================================
@@ -114,29 +116,12 @@ if __name__ == "__main__":
             column="NutzungArt"
         )
 
+        # ---------------------------------------------------------
+        # DEBUG-TEST
+        # ---------------------------------------------------------
+        #gdf_test = check_prepared_geodataframe(
+        #    gpkg_path=PREPARED_GPKG_PATH,
+        #    layer=LAYER
+        #)
 
-
-
-        gdf = gpd.read_file(
-            PREPARED_GPKG_PATH,
-            layer=LAYER
-        )
-
-        print(gdf.columns.tolist())
-
-        print(
-            "NutzungArt_und_funktion vorhanden:",
-            "NutzungArt_und_funktion" in gdf.columns
-        )
-
-        print(
-            gdf[
-                [
-                    "NutzungArt",
-                    "funktion",
-                    "NutzungArt_und_funktion"
-                ]
-            ].head(20)
-        )
-
-        print("Debug_Test")
+        #print("Debug_Test")

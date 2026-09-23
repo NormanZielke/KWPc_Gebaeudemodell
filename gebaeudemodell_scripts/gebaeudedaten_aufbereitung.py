@@ -306,6 +306,96 @@ def combine_exclusive_columns(
     return data
 
 
+def add_source_column(
+        gdf,
+        nutzung_col="NutzungArt",
+        funktion_col="funktion",
+        output_col="Quelle"
+):
+    """
+    Ergänzt eine Spalte mit der Herkunft der Gebäudeklassifikation.
+
+    Regeln:
+        NutzungArt befüllt -> WK
+        funktion befüllt   -> ALKIS
+        beide leer         -> unklar
+        beide befüllt      -> unklar
+
+    Das ursprüngliche GeoDataFrame wird nicht verändert.
+    """
+
+    required_cols = [
+        nutzung_col,
+        funktion_col
+    ]
+
+    missing_cols = [
+        col for col in required_cols
+        if col not in gdf.columns
+    ]
+
+    if missing_cols:
+        raise KeyError(
+            f"Folgende Spalten fehlen im Gebäudemodell: "
+            f"{missing_cols}"
+        )
+
+    data = gdf.copy()
+
+    # ---------------------------------------------------------
+    # Leere Strings als fehlende Werte behandeln
+    # ---------------------------------------------------------
+    for col in required_cols:
+
+        data[col] = data[col].replace(
+            r"^\s*$",
+            pd.NA,
+            regex=True
+        )
+
+    # ---------------------------------------------------------
+    # Quelle bestimmen
+    # ---------------------------------------------------------
+    nutzung_filled = data[nutzung_col].notna()
+    funktion_filled = data[funktion_col].notna()
+
+    data[output_col] = "unklar"
+
+    data.loc[
+        nutzung_filled & ~funktion_filled,
+        output_col
+    ] = "WK"
+
+    data.loc[
+        ~nutzung_filled & funktion_filled,
+        output_col
+    ] = "ALKIS"
+
+    # ---------------------------------------------------------
+    # Ausgabe
+    # ---------------------------------------------------------
+    print(
+        "\n"
+        "============================================================"
+    )
+
+    print(
+        f"Quellspalte erzeugt: {output_col}"
+    )
+
+    print(
+        "============================================================"
+    )
+
+    print(
+        data[output_col]
+        .value_counts(dropna=False)
+        .to_string()
+    )
+
+    return data
+
+
 def prepare_gebaeudemodell(
         input_path,
         output_path,
@@ -314,7 +404,8 @@ def prepare_gebaeudemodell(
         encoding_column="NutzungArt",
         primary_col="NutzungArt",
         fallback_col="funktion",
-        combined_col="NutzungArt_und_funktion"
+        combined_col="NutzungArt_und_funktion",
+        source_col="Quelle"
 ):
     """
     Bereitet das Gebäudemodell auf und speichert das Ergebnis
@@ -378,7 +469,17 @@ def prepare_gebaeudemodell(
     )
 
     # ---------------------------------------------------------
-    # 3. NutzungArt und funktion zusammenführen
+    # 3. Datenquelle bestimmen
+    # ---------------------------------------------------------
+    gdf = add_source_column(
+        gdf=gdf,
+        nutzung_col=primary_col,
+        funktion_col=fallback_col,
+        output_col=source_col
+    )
+
+    # ---------------------------------------------------------
+    # 4. NutzungArt und funktion zusammenführen
     # ---------------------------------------------------------
     gdf = combine_exclusive_columns(
         gdf=gdf,
@@ -388,7 +489,7 @@ def prepare_gebaeudemodell(
     )
 
     # ---------------------------------------------------------
-    # 4. Zielordner erzeugen
+    # 5. Zielordner erzeugen
     # ---------------------------------------------------------
     output_path.parent.mkdir(
         parents=True,
@@ -396,7 +497,7 @@ def prepare_gebaeudemodell(
     )
 
     # ---------------------------------------------------------
-    # 5. GeoPackage speichern
+    # 6. GeoPackage speichern
     # ---------------------------------------------------------
     if layer is None:
 
