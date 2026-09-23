@@ -6,6 +6,9 @@ from gebaeudemodell_scripts.gebaeudedaten_aufbereitung import (
     prepare_gebaeudemodell,
     analyse_nutzungart_encoding,
 )
+from gebaeudemodell_scripts.gebaeudedaten_reduktion import (
+    reduce_gebaeudemodell,
+)
 
 from test_scripts.test import check_prepared_geodataframe
 
@@ -67,6 +70,12 @@ PREPARED_VARIANTS = [
     ["NutzungArt_und_funktion"],
 ]
 
+
+REMOVE_CATEGORIES = [
+    "Garage",
+    "Schuppen",
+]
+
 # =============================================================
 # PARAMETER
 # =============================================================
@@ -122,6 +131,31 @@ if __name__ == "__main__":
             gpkg_path=PREPARED_GPKG_PATH,
             category_cols=category_cols,
             output_dir=PREPARED_OUTPUT_DIR,
+            layer=LAYER,
+            demand_col=DEMAND_COL,
+            thresholds=THRESHOLDS,
+            recreate_mapping=RECREATE_MAPPING
+        )
+
+    # ---------------------------------------------------------
+    # 4. Vorbereitete Gebäudedaten reduzieren
+    # ---------------------------------------------------------
+    reduced_model = reduce_gebaeudemodell(
+        input_path=PREPARED_GPKG_PATH,
+        output_base_dir=PREPARED_OUTPUT_DIR,
+        remove_categories=REMOVE_CATEGORIES,
+        layer=LAYER,
+        category_col="NutzungArt_und_funktion"
+    )
+
+    # ---------------------------------------------------------
+    # 5. Gebäudeauswertung des reduzierten Datensatzes
+    # ---------------------------------------------------------
+    for category_cols in PREPARED_VARIANTS:
+        run_gebaeudeauswertung(
+            gpkg_path=reduced_model["gpkg_path"],
+            category_cols=category_cols,
+            output_dir=reduced_model["output_dir"],
             layer=LAYER,
             demand_col=DEMAND_COL,
             thresholds=THRESHOLDS,
