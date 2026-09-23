@@ -2,9 +2,10 @@ from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
 
+import fiona
 import geopandas as gpd
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 # =============================================================
@@ -46,16 +47,11 @@ WK_LAYER = "WK_EG_HN"
 
 
 # =============================================================
-# Bekannte Zuordnung WK -> Gebäudemodell
+# Bekannte direkte Spaltenzuordnungen
 # =============================================================
-#
-# Einige Spalten wurden mit gleichem Namen übernommen,
-# andere wurden im HN-Modell verkürzt.
-#
+
 # Key   = Spaltenname im HN-Gebäudemodell
 # Value = Spaltenname im Wärmekataster
-#
-
 WK_COLUMN_MAPPING = {
     "GebaeudeID": "GebaeudeID",
     "StrName": "StrName",
@@ -86,17 +82,125 @@ WK_COLUMN_MAPPING = {
     "gemeinde_n": "gemeinde_name",
 }
 
+# Direkte Attributentsprechungen zwischen HN und ALKIS.
+# geometry wird separat behandelt.
+ALKIS_COLUMN_MAPPING = {
+    "funktion": "funktion",
+}
+
 
 # =============================================================
 # Hilfsfunktionen
 # =============================================================
 
+
+def get_gpkg_schema(path, layer):
+    """
+    Liest das im GeoPackage deklarierte Feldschema aus.
+
+    Returns
+    -------
+    properties : dict
+        Attributspalten mit gespeichertem GeoPackage/Fiona-Datentyp.
+
+    geometry_type : str
+        Im GeoPackage deklarierter Geometrietyp.
+    """
+    with fiona.open(path, layer=layer) as src:
+        properties = dict(src.schema["properties"])
+        geometry_type = src.schema["geometry"]
+
+    return properties, geometry_type
+
+
+def check_schema_dtype_compatibility(gdf, schema):
+    """
+    Prüft, ob der von GeoPandas eingelesene dtype grundsätzlich
+    zum im GeoPackage deklarierten Feldtyp passt.
+
+    Hinweis:
+    Ein Integerfeld kann in pandas als float64 erscheinen, wenn
+    fehlende Werte (NaN) vorhanden sind. Das ist kein Datenfehler,
+    solange alle vorhandenen Werte ganzzahlig sind.
+    """
+
+    results = []
+
+    for col, declared_type in schema.items():
+
+        if col not in gdf.columns:
+            results.append({
+                "Spalte": col,
+                "GPKG-Typ": declared_type,
+                "GeoPandas-dtype": "FEHLT",
+                "Status": "Spalte fehlt"
+            })
+            continue
+
+        series = gdf[col]
+        pandas_dtype = str(series.dtype)
+
+        status = "OK"
+
+        if declared_type.startswith("str"):
+            if not (
+                series.dtype == "object"
+                or pd.api.types.is_string_dtype(series)
+            ):
+                status = "ABWEICHUNG"
+
+        elif declared_type.startswith("float"):
+            if not pd.api.types.is_numeric_dtype(series):
+                status = "ABWEICHUNG"
+
+        elif declared_type.startswith("int"):
+            if pd.api.types.is_integer_dtype(series):
+                status = "OK"
+
+            elif pd.api.types.is_float_dtype(series):
+                non_null = series.dropna()
+
+                if len(non_null) == 0:
+                    status = (
+                        "OK: float64 durch fehlende Werte möglich"
+                    )
+                elif np.all(
+                    np.isclose(
+                        non_null % 1,
+                        0,
+                        rtol=0,
+                        atol=0
+                    )
+                ):
+                    status = (
+                        "OK: als float64 eingelesen wegen NaN; "
+                        "vorhandene Werte sind ganzzahlig"
+                    )
+                else:
+                    status = (
+                        "ABWEICHUNG: Integerfeld enthält "
+                        "nicht-ganzzahlige Werte"
+                    )
+
+            else:
+                status = "ABWEICHUNG"
+
+        results.append({
+            "Spalte": col,
+            "GPKG-Typ": declared_type,
+            "GeoPandas-dtype": pandas_dtype,
+            "Status": status
+        })
+
+    return pd.DataFrame(results)
+
+
 def clean_missing(series):
     """
     Behandelt leere Strings zusätzlich als fehlende Werte.
+
     Die Originaldaten werden dabei nicht verändert.
     """
-
     if series.dtype == "object":
         return series.replace(
             r"^\s*$",
@@ -109,94 +213,100 @@ def clean_missing(series):
 
 def compare_series(left, right):
     """
-    Vergleicht zwei Series möglichst robust.
+    Vergleicht zwei Series elementweise möglichst robust.
 
-    Numerische Werte werden auch dann numerisch verglichen,
-    wenn eine Quelle z. B. '005' und die andere 5.0 enthält.
+    Vorgehen:
+    - fehlend / fehlend -> gleich
+    - wenn beide Einzelwerte numerisch interpretierbar sind:
+      numerischer Vergleich
+    - ansonsten:
+      exakter Textvergleich
 
-    Textwerte werden dagegen exakt verglichen.
-    Encodingfehler wie 'Geb�ude' werden NICHT korrigiert.
+    Dadurch führen einzelne fehlerhaft formatierte Werte nicht mehr
+    dazu, dass die gesamte Spalte als Text verglichen wird.
+
+    Encodingfehler wie 'Geb�ude' werden bewusst NICHT korrigiert.
 
     Returns
     -------
     matches : int
+        Anzahl identischer Werte.
+
     total : int
+        Anzahl verglichener Werte.
+
     percent : float
+        Prozentuale Übereinstimmung.
+
+    numeric_unparseable : int
+        Anzahl Fälle, bei denen nur eine der beiden Seiten numerisch
+        interpretiert werden konnte.
     """
 
-    left = left.copy()
-    right = right.copy()
+    left = left.reset_index(drop=True)
+    right = right.reset_index(drop=True)
 
-    both_na = (
-        left.isna()
-        & right.isna()
-    )
+    matches = 0
+    numeric_unparseable = 0
 
-    left_num = pd.to_numeric(
-        left,
-        errors="coerce"
-    )
+    for value_left, value_right in zip(left, right):
 
-    right_num = pd.to_numeric(
-        right,
-        errors="coerce"
-    )
+        # Beide Werte fehlen
+        if (
+            pd.isna(value_left)
+            and pd.isna(value_right)
+        ):
+            matches += 1
+            continue
 
-    # Prüfen, ob beide Spalten vollständig als numerisch
-    # interpretiert werden können.
-    left_numeric_possible = (
-        left.isna()
-        | left_num.notna()
-    ).all()
+        # Nur einer der beiden Werte fehlt
+        if (
+            pd.isna(value_left)
+            or pd.isna(value_right)
+        ):
+            continue
 
-    right_numeric_possible = (
-        right.isna()
-        | right_num.notna()
-    ).all()
+        # Numerische Interpretation beider Einzelwerte versuchen
+        left_num = pd.to_numeric(
+            pd.Series([value_left]),
+            errors="coerce"
+        ).iloc[0]
 
-    if (
-        left_numeric_possible
-        and right_numeric_possible
-    ):
+        right_num = pd.to_numeric(
+            pd.Series([value_right]),
+            errors="coerce"
+        ).iloc[0]
 
-        equal = (
-            both_na
-            |
-            (
-                left_num.notna()
-                & right_num.notna()
-                & np.isclose(
-                    left_num,
-                    right_num,
-                    rtol=1e-9,
-                    atol=1e-6
-                )
-            )
-        )
+        # Beide Werte numerisch interpretierbar
+        if (
+            pd.notna(left_num)
+            and pd.notna(right_num)
+        ):
+            if np.isclose(
+                left_num,
+                right_num,
+                rtol=1e-9,
+                atol=1e-6
+            ):
+                matches += 1
 
-    else:
+            continue
 
-        left_string = (
-            left
-            .fillna("<NA>")
-            .astype(str)
-            .str.strip()
-        )
+        # Nur eine Seite numerisch interpretierbar
+        if (
+            pd.notna(left_num)
+            != pd.notna(right_num)
+        ):
+            numeric_unparseable += 1
 
-        right_string = (
-            right
-            .fillna("<NA>")
-            .astype(str)
-            .str.strip()
-        )
+        # Textvergleich
+        if (
+            str(value_left).strip()
+            == str(value_right).strip()
+        ):
+            matches += 1
 
-        equal = (
-            left_string
-            == right_string
-        )
-
-    total = len(equal)
-    matches = int(equal.sum())
+    total = len(left)
 
     percent = (
         matches / total * 100
@@ -204,17 +314,21 @@ def compare_series(left, right):
         else np.nan
     )
 
-    return matches, total, percent
+    return (
+        matches,
+        total,
+        percent,
+        numeric_unparseable
+    )
 
 
 def normalized_geometry_key(geometry):
     """
     Erzeugt einen möglichst einheitlichen Geometrieschlüssel.
 
-    normalize() vereinheitlicht unter anderem die Reihenfolge
-    von Polygonringen. Dadurch können identische ALKIS-Geometrien
-    auch dann erkannt werden, wenn die interne Reihenfolge
-    unterschiedlich gespeichert wurde.
+    normalize() vereinheitlicht u. a. die interne Reihenfolge
+    von Polygonringen. Dadurch können geometrisch identische
+    Objekte zuverlässiger erkannt werden.
     """
 
     if geometry is None:
@@ -287,6 +401,40 @@ def analyse_data_sources():
         layer=WK_LAYER
     )
 
+    # ---------------------------------------------------------
+    # Grundlegende Spaltenprüfung
+    # ---------------------------------------------------------
+
+    required_hn = {
+        "NutzungArt",
+        "funktion"
+    }
+
+    missing_hn = required_hn.difference(
+        hn.columns
+    )
+
+    if missing_hn:
+        raise KeyError(
+            "Im HN-Gebäudemodell fehlen benötigte Spalten: "
+            f"{sorted(missing_hn)}"
+        )
+
+    if "GebaeudeID" not in wk.columns:
+        raise KeyError(
+            "Im Wärmekataster fehlt die Spalte 'GebaeudeID'."
+        )
+
+    if "NutzungArt" not in wk.columns:
+        raise KeyError(
+            "Im Wärmekataster fehlt die Spalte 'NutzungArt'."
+        )
+
+    if "funktion" not in alkis.columns:
+        raise KeyError(
+            "In ALKIS fehlt die Spalte 'funktion'."
+        )
+
     report = []
 
     report.append(
@@ -355,7 +503,7 @@ def analyse_data_sources():
         )
 
         report.append(
-            f"Geometrietypen: "
+            "Geometrietypen: "
             f"{', '.join(gdf.geom_type.dropna().unique())}"
         )
 
@@ -364,34 +512,458 @@ def analyse_data_sources():
         )
 
     # =========================================================
-    # 2. Spalten der drei Datensätze
+    # 2. Spaltenschemata und Datentypen
     # =========================================================
 
     add_section(
         report,
-        "2. Spaltenschemata"
+        "2. Spaltenschemata und Datentypen"
     )
 
-    report.append("")
-    report.append("HN-Gebäudemodell:")
-    for col in hn.columns:
-        report.append(
-            f"  - {col}"
+    dataset_schema_info = [
+        (
+            "HN-Gebäudemodell",
+            HN_PATH,
+            HN_LAYER,
+            hn
+        ),
+        (
+            "Wärmekataster",
+            WK_PATH,
+            WK_LAYER,
+            wk
+        ),
+        (
+            "ALKIS",
+            ALKIS_PATH,
+            ALKIS_LAYER,
+            alkis
+        ),
+    ]
+
+    schema_cache = {}
+
+    for name, path, layer, gdf in dataset_schema_info:
+
+        schema, geometry_type = get_gpkg_schema(
+            path,
+            layer
         )
 
-    report.append("")
-    report.append("Wärmekataster:")
-    for col in wk.columns:
+        schema_cache[name] = schema
+
+        report.append("")
+        report.append(name)
+        report.append("-" * len(name))
+
         report.append(
-            f"  - {col}"
+            f"{'Spalte':<25}"
+            f"{'GPKG-Typ':<18}"
+            f"{'GeoPandas-dtype':<20}"
+            f"{'Nicht leer':>12}"
+            f"{'Fehlend':>12}"
         )
 
+        report.append("-" * 87)
+
+        for col in gdf.columns:
+
+            if col == gdf.geometry.name:
+                gpkg_type = (
+                    f"geometry ({geometry_type})"
+                )
+            else:
+                gpkg_type = schema.get(
+                    col,
+                    "nicht im Schema"
+                )
+
+            non_null = int(
+                gdf[col].notna().sum()
+            )
+
+            missing = int(
+                gdf[col].isna().sum()
+            )
+
+            report.append(
+                f"{col:<25}"
+                f"{gpkg_type:<18}"
+                f"{str(gdf[col].dtype):<20}"
+                f"{non_null:>12,}"
+                f"{missing:>12,}"
+            )
+
+    # ---------------------------------------------------------
+    # 2.1 Technische Datentypprüfung
+    # ---------------------------------------------------------
+
     report.append("")
-    report.append("ALKIS:")
-    for col in alkis.columns:
-        report.append(
-            f"  - {col}"
+    report.append(
+        "2.1 Prüfung: deklarierter GPKG-Typ "
+        "vs. eingelesener GeoPandas-dtype"
+    )
+    report.append("-" * 75)
+
+    for name, path, layer, gdf in dataset_schema_info:
+
+        schema = schema_cache[name]
+
+        type_check = check_schema_dtype_compatibility(
+            gdf,
+            schema
         )
+
+        report.append("")
+        report.append(name + ":")
+
+        non_ok = type_check[
+            ~type_check["Status"].eq("OK")
+        ]
+
+        if non_ok.empty:
+            report.append(
+                "  Keine technischen Datentyp-Auffälligkeiten."
+            )
+        else:
+            for _, row in non_ok.iterrows():
+                report.append(
+                    f"  - {row['Spalte']}: "
+                    f"GPKG={row['GPKG-Typ']}, "
+                    f"GeoPandas={row['GeoPandas-dtype']} -> "
+                    f"{row['Status']}"
+                )
+
+    # ---------------------------------------------------------
+    # 2.2 Auffällige Typ-/Formatänderungen zwischen WK und HN
+    # ---------------------------------------------------------
+
+    report.append("")
+    report.append(
+        "2.2 Auffällige Typ- oder Formatänderungen "
+        "zwischen Wärmekataster und HN-Modell"
+    )
+    report.append("-" * 75)
+
+    hn_schema = schema_cache[
+        "HN-Gebäudemodell"
+    ]
+
+    wk_schema = schema_cache[
+        "Wärmekataster"
+    ]
+
+    differing_mapped_types = []
+
+    for hn_col, wk_col in WK_COLUMN_MAPPING.items():
+
+        if (
+            hn_col in hn_schema
+            and wk_col in wk_schema
+            and hn_schema[hn_col] != wk_schema[wk_col]
+        ):
+            differing_mapped_types.append(
+                (
+                    hn_col,
+                    hn_schema[hn_col],
+                    wk_col,
+                    wk_schema[wk_col]
+                )
+            )
+
+    if differing_mapped_types:
+        report.append(
+            "Direkt zugeordnete Spalten mit unterschiedlichem "
+            "gespeicherten Datentyp:"
+        )
+
+        for (
+            hn_col,
+            hn_type,
+            wk_col,
+            wk_type
+        ) in differing_mapped_types:
+
+            report.append(
+                f"  - HN {hn_col} [{hn_type}] "
+                f"<- WK {wk_col} [{wk_type}]"
+            )
+
+    # Flur: führende Nullen können durch String -> Float verloren gehen.
+    if (
+        "Flur" in hn.columns
+        and "Flur" in wk.columns
+    ):
+        wk_flur = (
+            wk["Flur"]
+            .dropna()
+            .astype(str)
+        )
+
+        leading_zero_count = int(
+            wk_flur.str.match(
+                r"^0+\d+$"
+            ).sum()
+        )
+
+        report.append("")
+        report.append(
+            "Flur:"
+        )
+        report.append(
+            "  WK speichert 'Flur' als Text, HN als float."
+        )
+        report.append(
+            f"  WK-Werte mit führenden Nullen: "
+            f"{leading_zero_count:,}."
+        )
+
+        examples = (
+            wk_flur[
+                wk_flur.str.match(
+                    r"^0+\d+$"
+                )
+            ]
+            .drop_duplicates()
+            .head(10)
+            .tolist()
+        )
+
+        if examples:
+            report.append(
+                "  Beispiele WK: "
+                + ", ".join(examples)
+            )
+            report.append(
+                "  Bei der Umwandlung zu float gehen "
+                "führende Nullen verloren "
+                "(z. B. '005' -> 5.0)."
+            )
+
+    # Für die folgenden Prüfungen nur WK-basierte HN-Gebäude
+    # per GebaeudeID zusammenführen.
+    hn_wk_for_format = hn.loc[
+        (
+            clean_missing(hn["NutzungArt"]).notna()
+            & clean_missing(hn["funktion"]).isna()
+        )
+    ].copy()
+
+    wk_format_columns = [
+        col
+        for col in [
+            "GebaeudeID",
+            "AnzlWhg",
+            "Flurstueck",
+            "Waermebed_kwh_a"
+        ]
+        if col in wk.columns
+    ]
+
+    hn_format_columns = [
+        col
+        for col in [
+            "GebaeudeID",
+            "AnzlWhg",
+            "Flurstueck",
+            "Waermebed_"
+        ]
+        if col in hn_wk_for_format.columns
+    ]
+
+    if (
+        "GebaeudeID" in wk_format_columns
+        and "GebaeudeID" in hn_format_columns
+    ):
+
+        format_compare = (
+            hn_wk_for_format[
+                hn_format_columns
+            ]
+            .merge(
+                wk[
+                    wk_format_columns
+                ],
+                on="GebaeudeID",
+                how="left",
+                suffixes=("_HN", "_WK")
+            )
+        )
+
+        # AnzlWhg
+        if (
+            "AnzlWhg_HN" in format_compare.columns
+            and "AnzlWhg_WK" in format_compare.columns
+        ):
+            left = (
+                format_compare[
+                    "AnzlWhg_HN"
+                ]
+                .fillna("<NA>")
+                .astype(str)
+            )
+
+            right = (
+                format_compare[
+                    "AnzlWhg_WK"
+                ]
+                .fillna("<NA>")
+                .astype(str)
+            )
+
+            diff = left != right
+
+            report.append("")
+            report.append("AnzlWhg:")
+            report.append(
+                f"  Abweichende WK/HN-Werte: "
+                f"{int(diff.sum()):,}."
+            )
+
+            examples = (
+                format_compare.loc[
+                    diff,
+                    [
+                        "AnzlWhg_HN",
+                        "AnzlWhg_WK"
+                    ]
+                ]
+                .value_counts()
+                .head(10)
+            )
+
+            for (
+                hn_value,
+                wk_value
+            ), count in examples.items():
+                report.append(
+                    f"  - WK '{wk_value}' -> "
+                    f"HN '{hn_value}': {count:,} Fälle"
+                )
+
+        # Flurstueck
+        if (
+            "Flurstueck_HN" in format_compare.columns
+            and "Flurstueck_WK" in format_compare.columns
+        ):
+            left = (
+                format_compare[
+                    "Flurstueck_HN"
+                ]
+                .fillna("<NA>")
+                .astype(str)
+            )
+
+            right = (
+                format_compare[
+                    "Flurstueck_WK"
+                ]
+                .fillna("<NA>")
+                .astype(str)
+            )
+
+            diff = left != right
+
+            report.append("")
+            report.append("Flurstueck:")
+            report.append(
+                f"  Abweichende WK/HN-Werte: "
+                f"{int(diff.sum()):,}."
+            )
+
+            examples = (
+                format_compare.loc[
+                    diff,
+                    [
+                        "Flurstueck_HN",
+                        "Flurstueck_WK"
+                    ]
+                ]
+                .value_counts()
+                .head(10)
+            )
+
+            for (
+                hn_value,
+                wk_value
+            ), count in examples.items():
+                report.append(
+                    f"  - WK '{wk_value}' -> "
+                    f"HN '{hn_value}': {count:,} Fälle"
+                )
+
+        # Waermebed_
+        if (
+            "Waermebed_" in format_compare.columns
+            and "Waermebed_kwh_a" in format_compare.columns
+        ):
+            hn_heat_text = (
+                format_compare[
+                    "Waermebed_"
+                ]
+                .astype("string")
+                .str.strip()
+            )
+
+            hn_heat_numeric = pd.to_numeric(
+                hn_heat_text,
+                errors="coerce"
+            )
+
+            wk_heat_numeric = pd.to_numeric(
+                format_compare[
+                    "Waermebed_kwh_a"
+                ],
+                errors="coerce"
+            )
+
+            invalid_hn_heat = (
+                hn_heat_text.notna()
+                & hn_heat_numeric.isna()
+            )
+
+            report.append("")
+            report.append("Waermebed_:")
+            report.append(
+                "  WK speichert Waermebed_kwh_a als float, "
+                "HN speichert Waermebed_ als Text."
+            )
+            report.append(
+                f"  HN-Werte, die nicht numerisch interpretierbar "
+                f"sind: {int(invalid_hn_heat.sum()):,}."
+            )
+
+            invalid_examples = (
+                hn_heat_text[
+                    invalid_hn_heat
+                ]
+                .drop_duplicates()
+                .head(10)
+                .tolist()
+            )
+
+            for value in invalid_examples:
+                report.append(
+                    f"  - auffälliger HN-Wert: {value}"
+                )
+
+    report.append("")
+    report.append(
+        "Bewertung:"
+    )
+    report.append(
+        "  Ein anderer pandas-dtype als der gespeicherte "
+        "GPKG-Typ ist nicht automatisch ein Fehler."
+    )
+    report.append(
+        "  Besonders bei Integerfeldern mit NULL-Werten kann "
+        "GeoPandas/pandas float64 verwenden."
+    )
+    report.append(
+        "  Inhaltlich auffälliger sind Formatänderungen, bei "
+        "denen Informationen verloren gehen oder Werte offenbar "
+        "als Datum interpretiert wurden."
+    )
 
     # =========================================================
     # 3. Herkunft über NutzungArt / funktion
@@ -435,29 +1007,27 @@ def analyse_data_sources():
     )
 
     report.append(
-        f"NutzungArt belegt / funktion leer -> WK: "
+        "NutzungArt belegt / funktion leer -> WK: "
         f"{mask_wk.sum():,}"
     )
 
     report.append(
-        f"funktion belegt / NutzungArt leer -> ALKIS: "
+        "funktion belegt / NutzungArt leer -> ALKIS: "
         f"{mask_alkis.sum():,}"
     )
 
     report.append(
-        f"Beide Spalten belegt: "
+        "Beide Spalten belegt: "
         f"{mask_both.sum():,}"
     )
 
     report.append(
-        f"Beide Spalten leer: "
+        "Beide Spalten leer: "
         f"{mask_none.sum():,}"
     )
 
     report.append("")
-    report.append(
-        "Interpretation:"
-    )
+    report.append("Interpretation:")
 
     if (
         mask_both.sum() == 0
@@ -467,15 +1037,31 @@ def analyse_data_sources():
             "Die beiden Spalten sind im HN-Modell vollständig "
             "komplementär belegt."
         )
+    else:
+        report.append(
+            "Die beiden Spalten sind nicht vollständig "
+            "komplementär belegt. Die abweichenden Fälle sollten "
+            "separat geprüft werden."
+        )
 
     # =========================================================
-    # 4. Spaltenzuordnung WK
+    # 4. Direkte Spaltenentsprechungen WK und ALKIS
     # =========================================================
 
     add_section(
         report,
-        "4. Spalten mit direkter Entsprechung im Wärmekataster"
+        "4. Spalten mit direkter Entsprechung in den Quelldatensätzen"
     )
+
+    # ---------------------------------------------------------
+    # 4.1 Wärmekataster
+    # ---------------------------------------------------------
+
+    report.append("")
+    report.append(
+        "4.1 Direkte Entsprechungen zum Wärmekataster"
+    )
+    report.append("-" * 60)
 
     for hn_col, wk_col in WK_COLUMN_MAPPING.items():
 
@@ -502,6 +1088,53 @@ def analyse_data_sources():
             f"[{relation}; {', '.join(status)}]"
         )
 
+    report.append(
+        f"{'geometry':<20} <- "
+        f"{'geometry':<25} "
+        "[Geometrie in beiden Datensätzen vorhanden]"
+    )
+
+    # ---------------------------------------------------------
+    # 4.2 ALKIS
+    # ---------------------------------------------------------
+
+    report.append("")
+    report.append(
+        "4.2 Direkte Entsprechungen zu ALKIS"
+    )
+    report.append("-" * 60)
+
+    for hn_col, alkis_col in ALKIS_COLUMN_MAPPING.items():
+
+        status = []
+
+        if hn_col in hn.columns:
+            status.append("HN vorhanden")
+        else:
+            status.append("HN FEHLT")
+
+        if alkis_col in alkis.columns:
+            status.append("ALKIS vorhanden")
+        else:
+            status.append("ALKIS FEHLT")
+
+        if hn_col == alkis_col:
+            relation = "gleicher Name"
+        else:
+            relation = "umbenannt"
+
+        report.append(
+            f"{hn_col:<20} <- "
+            f"{alkis_col:<25} "
+            f"[{relation}; {', '.join(status)}]"
+        )
+
+    report.append(
+        f"{'geometry':<20} <- "
+        f"{'geometry':<25} "
+        "[Geometrie in beiden Datensätzen vorhanden]"
+    )
+
     # =========================================================
     # 5. HN-Spalten ohne direkte Entsprechung
     # =========================================================
@@ -513,7 +1146,7 @@ def analyse_data_sources():
 
     mapped_hn_columns = (
         set(WK_COLUMN_MAPPING.keys())
-        | {"funktion"}
+        | set(ALKIS_COLUMN_MAPPING.keys())
     )
 
     hn_only = sorted(
@@ -575,9 +1208,14 @@ def analyse_data_sources():
         "7. ALKIS-Spalten ohne direkte Zielspalte im HN-Modell"
     )
 
+    mapped_alkis_columns = set(
+        ALKIS_COLUMN_MAPPING.values()
+    )
+
     alkis_not_directly_transferred = sorted(
         set(alkis.columns)
-        - {"funktion", "geometry"}
+        - mapped_alkis_columns
+        - {"geometry"}
     )
 
     for col in alkis_not_directly_transferred:
@@ -618,12 +1256,12 @@ def analyse_data_sources():
     )
 
     report.append(
-        f"Eindeutige NutzungArt-Kategorien im HN-WK-Anteil: "
+        "Eindeutige NutzungArt-Kategorien im HN-WK-Anteil: "
         f"{hn_wk['NutzungArt'].dropna().nunique()}"
     )
 
     report.append(
-        f"Eindeutige NutzungArt-Kategorien im gesamten WK: "
+        "Eindeutige NutzungArt-Kategorien im gesamten WK: "
         f"{wk['NutzungArt'].dropna().nunique()}"
     )
 
@@ -707,7 +1345,14 @@ def analyse_data_sources():
     )
 
     report.append(
-        "Encodingprobleme werden dabei bewusst NICHT korrigiert."
+        "Numerisch interpretierbare Einzelwerte werden numerisch "
+        "verglichen. Einzelne fehlerhaft formatierte Werte führen "
+        "nicht mehr dazu, dass eine gesamte Spalte als Text "
+        "verglichen wird."
+    )
+
+    report.append(
+        "Encodingprobleme werden bewusst NICHT korrigiert."
     )
 
     report.append("")
@@ -763,11 +1408,14 @@ def analyse_data_sources():
             .loc[common_ids, wk_col]
         )
 
-        matches, total, percent = (
-            compare_series(
-                left,
-                right
-            )
+        (
+            matches,
+            total,
+            percent,
+            numeric_unparseable
+        ) = compare_series(
+            left,
+            right
         )
 
         report.append(
@@ -776,6 +1424,13 @@ def analyse_data_sources():
             f"{matches:>5,} / {total:<5,} "
             f"= {percent:6.2f} %"
         )
+
+        if numeric_unparseable > 0:
+            report.append(
+                f"{'':<49}Hinweis: "
+                f"{numeric_unparseable} Werte konnten nicht auf "
+                "beiden Seiten numerisch interpretiert werden."
+            )
 
     # =========================================================
     # 11. Prüfung ALKIS über funktion
@@ -813,12 +1468,12 @@ def analyse_data_sources():
     )
 
     report.append(
-        f"Eindeutige funktion-Kategorien im HN-ALKIS-Anteil: "
+        "Eindeutige funktion-Kategorien im HN-ALKIS-Anteil: "
         f"{len(hn_functions)}"
     )
 
     report.append(
-        f"Eindeutige funktion-Kategorien im gesamten ALKIS: "
+        "Eindeutige funktion-Kategorien im gesamten ALKIS: "
         f"{len(alkis_functions)}"
     )
 
@@ -854,7 +1509,7 @@ def analyse_data_sources():
 
     report.append(
         "Da HN und ALKIS keine gemeinsame Gebäude-ID besitzen, "
-        "wird hier nur geprüft, ob eine geometrisch identische "
+        "wird hier geprüft, ob eine geometrisch identische "
         "Gebäudegeometrie in ALKIS vorhanden ist."
     )
 
@@ -920,13 +1575,17 @@ def analyse_data_sources():
     )
 
     # =========================================================
-    # 13. Prüfung: Etagen
+    # 13. Tests berechneter / weiterverarbeiteter Spalten
     # =========================================================
 
     add_section(
         report,
-        "13. Test berechneter Spalten"
+        "13. Tests berechneter bzw. weiterverarbeiteter Spalten"
     )
+
+    # ---------------------------------------------------------
+    # 13.1 Etagen
+    # ---------------------------------------------------------
 
     report.append("")
     report.append(
@@ -947,6 +1606,9 @@ def analyse_data_sources():
                     "BruGeschFl_qm"
                 ]
             ]
+            .dropna(
+                subset=["GebaeudeID"]
+            )
             .drop_duplicates(
                 subset=["GebaeudeID"]
             )
@@ -959,6 +1621,9 @@ def analyse_data_sources():
                     "Etagen"
                 ]
             ]
+            .dropna(
+                subset=["GebaeudeID"]
+            )
             .merge(
                 wk_area,
                 on="GebaeudeID",
@@ -981,21 +1646,21 @@ def analyse_data_sources():
             errors="coerce"
         )
 
-        etagen_calculated = np.rint(
+        calculated = np.rint(
             gross_area / ground_area
         )
 
         valid = (
             etagen_original.notna()
-            & etagen_calculated.notna()
+            & calculated.notna()
             & np.isfinite(
-                etagen_calculated
+                calculated
             )
         )
 
         matches = np.isclose(
             etagen_original[valid],
-            etagen_calculated[valid],
+            calculated[valid],
             rtol=0,
             atol=0
         ).sum()
@@ -1007,9 +1672,14 @@ def analyse_data_sources():
             int(valid.sum())
         )
 
-    # =========================================================
-    # 14. Prüfung Bedarf_katatster
-    # =========================================================
+    else:
+        report.append(
+            "Test nicht möglich: benötigte Spalten fehlen."
+        )
+
+    # ---------------------------------------------------------
+    # 13.2 Bedarf_katatster
+    # ---------------------------------------------------------
 
     report.append("")
     report.append(
@@ -1050,9 +1720,14 @@ def analyse_data_sources():
             int(valid.sum())
         )
 
-    # =========================================================
-    # 15. Prüfung demand_spec
-    # =========================================================
+    else:
+        report.append(
+            "Test nicht möglich: benötigte Spalten fehlen."
+        )
+
+    # ---------------------------------------------------------
+    # 13.3 demand_spec
+    # ---------------------------------------------------------
 
     report.append("")
     report.append(
@@ -1110,9 +1785,14 @@ def analyse_data_sources():
             int(valid.sum())
         )
 
-    # =========================================================
-    # 16. Prüfung demand_2045
-    # =========================================================
+    else:
+        report.append(
+            "Test nicht möglich: benötigte Spalten fehlen."
+        )
+
+    # ---------------------------------------------------------
+    # 13.4 demand_2045
+    # ---------------------------------------------------------
 
     report.append("")
     report.append(
@@ -1153,6 +1833,9 @@ def analyse_data_sources():
         valid = (
             demand_2045.notna()
             & calculated.notna()
+            & np.isfinite(
+                calculated
+            )
         )
 
         matches = np.isclose(
@@ -1169,8 +1852,13 @@ def analyse_data_sources():
             int(valid.sum())
         )
 
+    else:
+        report.append(
+            "Test nicht möglich: benötigte Spalten fehlen."
+        )
+
     # =========================================================
-    # 17. Kurze Zusammenfassung
+    # 14. Zusammenfassung
     # =========================================================
 
     add_section(
@@ -1196,11 +1884,12 @@ def analyse_data_sources():
     report.append(
         "Spalten, die weder im bereitgestellten WK noch im "
         "bereitgestellten ALKIS vorkommen, sind als "
-        "Weiterverarbeitung bzw. zusätzliche Quelle zu behandeln."
+        "Weiterverarbeitung bzw. mögliche zusätzliche Quelle "
+        "zu behandeln."
     )
 
     report.append(
-        "Aus der bloßen Abwesenheit in WK/ALKIS kann jedoch nicht "
+        "Aus der bloßen Abwesenheit in WK/ALKIS kann nicht "
         "geschlossen werden, dass diese Information vom "
         "Planungsbüro selbst erzeugt wurde."
     )
@@ -1223,7 +1912,7 @@ def analyse_data_sources():
         encoding="utf-8"
     )
 
-    # Gleiche Ausgabe auch im Terminal
+    # Gleiche Ausgabe zusätzlich im Terminal
     print("\n")
     print(report_text)
 

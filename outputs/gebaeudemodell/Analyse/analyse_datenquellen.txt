@@ -1,5 +1,5 @@
 Analyse der Datenquellen des HN-Gebäudemodells
-Erstellt: 2026-09-23 12:23:49
+Erstellt: 2026-09-23 11:54:12
 
 Hinweis: Die Analyse verändert keine der drei Rohdateien.
 HN-only-Spalten werden nicht automatisch als vom Planungsbüro selbst erzeugt interpretiert. Sie können auch aus weiteren, hier nicht vorliegenden Datenquellen stammen.
@@ -33,174 +33,104 @@ Geometrietypen: MultiPolygon
 CRS: EPSG:25833
 
 ================================================================================
-2. Spaltenschemata und Datentypen
+2. Spaltenschemata
 ================================================================================
 
-HN-Gebäudemodell
-----------------
-Spalte                   GPKG-Typ          GeoPandas-dtype       Nicht leer     Fehlend
----------------------------------------------------------------------------------------
-GebaeudeID               str               object                     9,550       2,279
-StrName                  str               object                     9,550       2,279
-Hausnummer               float             float64                    9,550       2,279
-Stadtteil                str               object                         0      11,829
-PLZ                      str               object                         0      11,829
-Gemeinde                 str               object                     9,550       2,279
-AGS                      float             float64                    9,550       2,279
-Landkreis                str               object                     9,550       2,279
-Flur                     float             float64                    9,550       2,279
-Flurstueck               str               object                     9,550       2,279
-Gemarkung                str               object                     9,550       2,279
-BauAltKl                 str               object                    11,829           0
-GebTyp                   str               object                     9,550       2,279
-NutzungArt               str               object                     9,550       2,279
-AnzlWhg                  str               object                     8,960       2,869
-SolarPot_k               float             float64                    9,550       2,279
-Waermebed_               str               object                    11,829           0
-ETraeger1                str               object                    11,829           0
-ETraeger2                str               object                     1,868       9,961
-HzngTec1                 str               object                     9,550       2,279
-HzngTec2                 str               object                     9,550       2,279
-EndEVer_RW               float             float64                    9,550       2,279
-EndEVer_kw               float             float64                    9,550       2,279
-CO2_RW_tco               float             float64                    9,550       2,279
-CO2_tco2_a               float             float64                    9,550       2,279
-Datenquali               str               object                     9,550       2,279
-gemeinde_n               str               object                     9,550       2,279
-Etagen                   int32             int32                     11,829           0
-funktion                 str               object                     2,279       9,550
-heating_carrier          str               object                    11,829           0
-Bedarf_katatster         float             float64                   11,823           6
-Nutzung                  str               object                     9,550       2,279
-Baualter_int             int32             int32                     11,829           0
-komm                     float             float64                       73      11,756
-sector                   int32             int32                     11,829           0
-demand_kwh               int32             int32                     11,829           0
-denkmal                  str               object                        33      11,796
-hoehe_korr               float             float64                    8,109       3,720
-etagen_fin               int32             int32                     11,829           0
-nutzflaeche_korr         int32             int32                     11,829           0
-P_th                     int32             int32                     11,829           0
-demand_spec              float             float64                   11,829           0
-demand_2030              int32             int32                     11,829           0
-demand_2035              int32             int32                     11,829           0
-demand_2040              int32             int32                     11,829           0
-demand_2045              int32             int32                     11,829           0
-demand_spec_san          float             float64                   11,829           0
-geometry                 geometry (MultiPolygon)geometry                  11,829           0
-
-Wärmekataster
--------------
-Spalte                   GPKG-Typ          GeoPandas-dtype       Nicht leer     Fehlend
----------------------------------------------------------------------------------------
-GebaeudeID               str               object                    18,265           0
-StrName                  str               object                    18,265           0
-Hausnummer               str               object                    18,265           0
-Stadtteil                float             float64                        0      18,265
-PLZ                      float             float64                        0      18,265
-Gemeinde                 str               object                    18,265           0
-AGS                      str               object                    18,265           0
-Landkreis                str               object                    18,265           0
-Flur                     str               object                    18,265           0
-Flurstueck               str               object                    18,265           0
-Gemarkung                str               object                    18,265           0
-GrundFl_qm               float             float64                   18,265           0
-BruGeschFl_qm            float             float64                   18,265           0
-BauAltKl                 str               object                    18,265           0
-GebTyp                   str               object                    18,265           0
-NutzungArt               str               object                    18,265           0
-AnzlWhg                  str               object                    16,480       1,785
-SolarPot_kwh_a           float             float64                   18,265           0
-Waermebed_kwh_a          float             float64                   18,260           5
-ETraeger1                str               object                    18,265           0
-ETraeger2                str               object                     2,823      15,442
-HzngTec1                 str               object                    18,265           0
-HzngTec2                 str               object                    18,260           5
-EndEVer_RW_kwh_a         float             float64                   18,260           5
-EndEVer_kwh_a            float             float64                   18,265           0
-CO2_RW_tco2_a            float             float64                   18,260           5
-CO2_tco2_a               float             float64                   18,265           0
-Datenqualitaet           str               object                    18,265           0
-gemeinde_name            str               object                    18,265           0
-geometry                 geometry (Polygon)geometry                  18,265           0
-
-ALKIS
------
-Spalte                   GPKG-Typ          GeoPandas-dtype       Nicht leer     Fehlend
----------------------------------------------------------------------------------------
-identifier               str               object                    35,284           0
-oid                      str               object                    35,284           0
-aktualit                 str               object                    35,284           0
-gebnutzbez               str               object                    35,284           0
-funktion                 str               object                    35,284           0
-gfkzshh                  str               object                    35,255          29
-rellage                  str               object                        14      35,270
-name                     str               object                        14      35,270
-anzahlgs                 int32             float64                   10,852      24,432
-gmdschl                  str               object                    35,284           0
-lagebeztxt               str               object                    17,100      18,184
-geometry                 geometry (MultiPolygon)geometry                  35,284           0
-
-2.1 Prüfung: deklarierter GPKG-Typ vs. eingelesener GeoPandas-dtype
----------------------------------------------------------------------------
-
 HN-Gebäudemodell:
-  Keine technischen Datentyp-Auffälligkeiten.
+  - GebaeudeID
+  - StrName
+  - Hausnummer
+  - Stadtteil
+  - PLZ
+  - Gemeinde
+  - AGS
+  - Landkreis
+  - Flur
+  - Flurstueck
+  - Gemarkung
+  - BauAltKl
+  - GebTyp
+  - NutzungArt
+  - AnzlWhg
+  - SolarPot_k
+  - Waermebed_
+  - ETraeger1
+  - ETraeger2
+  - HzngTec1
+  - HzngTec2
+  - EndEVer_RW
+  - EndEVer_kw
+  - CO2_RW_tco
+  - CO2_tco2_a
+  - Datenquali
+  - gemeinde_n
+  - Etagen
+  - funktion
+  - heating_carrier
+  - Bedarf_katatster
+  - Nutzung
+  - Baualter_int
+  - komm
+  - sector
+  - demand_kwh
+  - denkmal
+  - hoehe_korr
+  - etagen_fin
+  - nutzflaeche_korr
+  - P_th
+  - demand_spec
+  - demand_2030
+  - demand_2035
+  - demand_2040
+  - demand_2045
+  - demand_spec_san
+  - geometry
 
 Wärmekataster:
-  Keine technischen Datentyp-Auffälligkeiten.
+  - GebaeudeID
+  - StrName
+  - Hausnummer
+  - Stadtteil
+  - PLZ
+  - Gemeinde
+  - AGS
+  - Landkreis
+  - Flur
+  - Flurstueck
+  - Gemarkung
+  - GrundFl_qm
+  - BruGeschFl_qm
+  - BauAltKl
+  - GebTyp
+  - NutzungArt
+  - AnzlWhg
+  - SolarPot_kwh_a
+  - Waermebed_kwh_a
+  - ETraeger1
+  - ETraeger2
+  - HzngTec1
+  - HzngTec2
+  - EndEVer_RW_kwh_a
+  - EndEVer_kwh_a
+  - CO2_RW_tco2_a
+  - CO2_tco2_a
+  - Datenqualitaet
+  - gemeinde_name
+  - geometry
 
 ALKIS:
-  - anzahlgs: GPKG=int32, GeoPandas=float64 -> OK: als float64 eingelesen wegen NaN; vorhandene Werte sind ganzzahlig
-
-2.2 Auffällige Typ- oder Formatänderungen zwischen Wärmekataster und HN-Modell
----------------------------------------------------------------------------
-Direkt zugeordnete Spalten mit unterschiedlichem gespeicherten Datentyp:
-  - HN Hausnummer [float] <- WK Hausnummer [str]
-  - HN Stadtteil [str] <- WK Stadtteil [float]
-  - HN PLZ [str] <- WK PLZ [float]
-  - HN AGS [float] <- WK AGS [str]
-  - HN Flur [float] <- WK Flur [str]
-  - HN Waermebed_ [str] <- WK Waermebed_kwh_a [float]
-
-Flur:
-  WK speichert 'Flur' als Text, HN als float.
-  WK-Werte mit führenden Nullen: 18,265.
-  Beispiele WK: 003, 001, 010, 002, 007, 008, 009, 005, 004, 006
-  Bei der Umwandlung zu float gehen führende Nullen verloren (z. B. '005' -> 5.0).
-
-AnzlWhg:
-  Abweichende WK/HN-Werte: 522.
-  - WK '3 - 6' -> HN '03. Jun': 381 Fälle
-  - WK '7 - 12' -> HN '07. Dez': 141 Fälle
-
-Flurstueck:
-  Abweichende WK/HN-Werte: 207.
-  - WK '18/2' -> HN '18. Feb': 5 Fälle
-  - WK '26/2' -> HN '26. Feb': 4 Fälle
-  - WK '18/1' -> HN '18. Jan': 3 Fälle
-  - WK '2/1' -> HN '02. Jan': 3 Fälle
-  - WK '6/1' -> HN '06. Jan': 3 Fälle
-  - WK '1/2' -> HN '01. Feb': 2 Fälle
-  - WK '6/60' -> HN 'Jun 60': 2 Fälle
-  - WK '24/1' -> HN '24. Jan': 2 Fälle
-  - WK '6/75' -> HN 'Jun 75': 2 Fälle
-  - WK '24/2' -> HN '24. Feb': 2 Fälle
-
-Waermebed_:
-  WK speichert Waermebed_kwh_a als float, HN speichert Waermebed_ als Text.
-  HN-Werte, die nicht numerisch interpretierbar sind: 6.
-  - auffälliger HN-Wert: 31.885.100.000.000.000
-  - auffälliger HN-Wert: 31.137.100.000.000.000
-  - auffälliger HN-Wert: 37.868.499.999.999.900
-  - auffälliger HN-Wert: 9.174.060.000.000.000
-  - auffälliger HN-Wert: 41.842.700.000.000.000
-  - auffälliger HN-Wert: 6.586.419.999.999.990
-
-Bewertung:
-  Ein anderer pandas-dtype als der gespeicherte GPKG-Typ ist nicht automatisch ein Fehler.
-  Besonders bei Integerfeldern mit NULL-Werten kann GeoPandas/pandas float64 verwenden.
-  Inhaltlich auffälliger sind Formatänderungen, bei denen Informationen verloren gehen oder Werte offenbar als Datum interpretiert wurden.
+  - identifier
+  - oid
+  - aktualit
+  - gebnutzbez
+  - funktion
+  - gfkzshh
+  - rellage
+  - name
+  - anzahlgs
+  - gmdschl
+  - lagebeztxt
+  - geometry
 
 ================================================================================
 3. Einfache Quellenzuordnung im HN-Gebäudemodell
