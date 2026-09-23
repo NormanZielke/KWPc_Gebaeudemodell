@@ -42,6 +42,12 @@ PREPARED_GPKG_PATH = (
     / "gebaeudemodell_prepared.gpkg"
 )
 
+PREPARED_OUTPUT_DIR = (
+    OUTPUT_DIR
+    / "prepared"
+    / "auswertung"
+)
+
 ENCODING_MAPPING_PATH = (
     "gebaeudemodell_scripts/config/"
     "nutzungart_encoding.json"
@@ -57,6 +63,9 @@ CATEGORY_VARIANTS = [
     ["NutzungArt", "funktion"],
 ]
 
+PREPARED_VARIANTS = [
+    ["NutzungArt_und_funktion"],
+]
 
 # =============================================================
 # PARAMETER
@@ -97,9 +106,9 @@ if __name__ == "__main__":
                 recreate_mapping=RECREATE_MAPPING
             )
 
-            # ---------------------------------------------------------
-            # 2. Gebäudedaten aufbereiten
-            # ---------------------------------------------------------
+        # ---------------------------------------------------------
+        # 2. Gebäudedaten aufbereiten
+        # ---------------------------------------------------------
         prepare_gebaeudemodell(
             input_path=GPKG_PATH,
             output_path=PREPARED_GPKG_PATH,
@@ -108,13 +117,18 @@ if __name__ == "__main__":
         )
 
         # ---------------------------------------------------------
-        # 3. Encoding des aufbereiteten Datensatzes prüfen
+        # 3. Gebäudeauswertung der aufbereiteten Daten
         # ---------------------------------------------------------
-        analyse_nutzungart_encoding(
-            path=PREPARED_GPKG_PATH,
-            layer=LAYER,
-            column="NutzungArt"
-        )
+        for category_cols in PREPARED_VARIANTS:
+            run_gebaeudeauswertung(
+                gpkg_path=PREPARED_GPKG_PATH,
+                category_cols=category_cols,
+                output_dir=PREPARED_OUTPUT_DIR,
+                layer=LAYER,
+                demand_col=DEMAND_COL,
+                thresholds=THRESHOLDS,
+                recreate_mapping=RECREATE_MAPPING
+            )
 
         # ---------------------------------------------------------
         # DEBUG-TEST
