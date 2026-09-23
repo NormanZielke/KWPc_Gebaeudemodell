@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from gebaeudeauswertung import run_gebaeudeauswertung
-
+from gebaeudemodell_scripts.gebaeudedaten_aufbereitung import prepare_gebaeudemodell
 
 # =============================================================
 # INPUT
@@ -30,6 +30,11 @@ OUTPUT_DIR = Path(
     "outputs/gebaeudemodell"
 )
 
+PREPARED_GPKG_PATH = (
+    "outputs/gebaeudemodell/"
+    "prepared/"
+    "gebaeudemodell_prepared.gpkg"
+)
 
 # =============================================================
 # AUSWERTUNGSVARIANTEN
@@ -65,17 +70,27 @@ RECREATE_MAPPING = False
 
 if __name__ == "__main__":
 
-    # ---------------------------------------------------------
-    # Gebäudeauswertung der Rohdaten
-    # ---------------------------------------------------------
-    for category_cols in CATEGORY_VARIANTS:
+    if __name__ == "__main__":
 
-        run_gebaeudeauswertung(
-            gpkg_path=GPKG_PATH,
-            category_cols=category_cols,
-            output_dir=OUTPUT_DIR,
-            layer=LAYER,
-            demand_col=DEMAND_COL,
-            thresholds=THRESHOLDS,
-            recreate_mapping=RECREATE_MAPPING
+        # ---------------------------------------------------------
+        # 1. Gebäudeauswertung der Rohdaten
+        # ---------------------------------------------------------
+        for category_cols in CATEGORY_VARIANTS:
+            run_gebaeudeauswertung(
+                gpkg_path=GPKG_PATH,
+                category_cols=category_cols,
+                output_dir=OUTPUT_DIR / "raw",
+                layer=LAYER,
+                demand_col=DEMAND_COL,
+                thresholds=THRESHOLDS,
+                recreate_mapping=RECREATE_MAPPING
+            )
+
+        # ---------------------------------------------------------
+        # 2. Gebäudedaten aufbereiten
+        # ---------------------------------------------------------
+        prepare_gebaeudemodell(
+            input_path=GPKG_PATH,
+            output_path=PREPARED_GPKG_PATH,
+            layer=LAYER
         )

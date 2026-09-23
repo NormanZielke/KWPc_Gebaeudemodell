@@ -289,7 +289,7 @@ def plot_gebaeudetypen(
         bbox_inches="tight"
     )
 
-    plt.show()
+    #plt.show()
 
     # ---------------------------------------------------------
     # Terminal-Ausgabe
