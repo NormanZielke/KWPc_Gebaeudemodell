@@ -1,5 +1,6 @@
 from pathlib import Path
 import geopandas as gpd
+import json
 
 
 def prepare_gebaeudemodell(
@@ -158,3 +159,78 @@ def analyse_nutzungart_encoding(
         )
 
     return problematic_values
+
+
+def fix_encoding(
+        gdf,
+        mapping_path,
+        column="NutzungArt"
+):
+    """
+    Korrigiert bekannte Encoding-Fehler anhand einer JSON-Mapping-Datei.
+
+    Unbekannte fehlerhafte Werte mit '�' führen zu einem Fehler,
+    damit keine problematischen Kategorien unbemerkt bestehen bleiben.
+    """
+
+    mapping_path = Path(mapping_path)
+
+    if column not in gdf.columns:
+        raise KeyError(
+            f"Spalte '{column}' nicht im Gebäudemodell gefunden."
+        )
+
+    # ---------------------------------------------------------
+    # Mapping laden
+    # ---------------------------------------------------------
+    with open(
+        mapping_path,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        encoding_mapping = json.load(file)
+
+    gdf = gdf.copy()
+
+    # ---------------------------------------------------------
+    # Werte ersetzen
+    # ---------------------------------------------------------
+    gdf[column] = gdf[column].replace(
+        encoding_mapping
+    )
+
+    # ---------------------------------------------------------
+    # Prüfen, ob noch fehlerhafte Werte vorhanden sind
+    # ---------------------------------------------------------
+    remaining_mask = (
+        gdf[column]
+        .astype("string")
+        .str.contains(
+            "�",
+            regex=False,
+            na=False
+        )
+    )
+
+    if remaining_mask.any():
+
+        remaining_values = (
+            gdf.loc[
+                remaining_mask,
+                column
+            ]
+            .value_counts()
+        )
+
+        raise ValueError(
+            "Nach der Encoding-Korrektur existieren noch "
+            "unbekannte problematische Werte:\n\n"
+            f"{remaining_values.to_string()}"
+        )
+
+    print(
+        f"\nEncoding-Korrektur für '{column}' abgeschlossen."
+    )
+
+    return gdf
