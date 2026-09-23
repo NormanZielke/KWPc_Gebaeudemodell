@@ -81,7 +81,7 @@ THRESHOLDS = (
 
 
 # Vorhandene Mapping-Dateien wiederverwenden
-RECREATE_MAPPING = True
+RECREATE_MAPPING = False
 
 
 # =============================================================
@@ -90,52 +90,50 @@ RECREATE_MAPPING = True
 
 if __name__ == "__main__":
 
-    if __name__ == "__main__":
-
-        # ---------------------------------------------------------
-        # 1. Gebäudeauswertung der Rohdaten
-        # ---------------------------------------------------------
-        for category_cols in CATEGORY_VARIANTS:
-            run_gebaeudeauswertung(
-                gpkg_path=GPKG_PATH,
-                category_cols=category_cols,
-                output_dir=OUTPUT_DIR / "raw",
-                layer=LAYER,
-                demand_col=DEMAND_COL,
-                thresholds=THRESHOLDS,
-                recreate_mapping=RECREATE_MAPPING
-            )
-
-        # ---------------------------------------------------------
-        # 2. Gebäudedaten aufbereiten
-        # ---------------------------------------------------------
-        prepare_gebaeudemodell(
-            input_path=GPKG_PATH,
-            output_path=PREPARED_GPKG_PATH,
-            encoding_mapping_path=ENCODING_MAPPING_PATH,
-            layer=LAYER
+    # ---------------------------------------------------------
+    # 1. Gebäudeauswertung der Rohdaten
+    # ---------------------------------------------------------
+    for category_cols in CATEGORY_VARIANTS:
+        run_gebaeudeauswertung(
+            gpkg_path=GPKG_PATH,
+            category_cols=category_cols,
+            output_dir=OUTPUT_DIR / "raw",
+            layer=LAYER,
+            demand_col=DEMAND_COL,
+            thresholds=THRESHOLDS,
+            recreate_mapping=RECREATE_MAPPING
         )
 
-        # ---------------------------------------------------------
-        # 3. Gebäudeauswertung der aufbereiteten Daten
-        # ---------------------------------------------------------
-        for category_cols in PREPARED_VARIANTS:
-            run_gebaeudeauswertung(
-                gpkg_path=PREPARED_GPKG_PATH,
-                category_cols=category_cols,
-                output_dir=PREPARED_OUTPUT_DIR,
-                layer=LAYER,
-                demand_col=DEMAND_COL,
-                thresholds=THRESHOLDS,
-                recreate_mapping=RECREATE_MAPPING
-            )
+    # ---------------------------------------------------------
+    # 2. Gebäudedaten aufbereiten
+    # ---------------------------------------------------------
+    prepare_gebaeudemodell(
+        input_path=GPKG_PATH,
+        output_path=PREPARED_GPKG_PATH,
+        encoding_mapping_path=ENCODING_MAPPING_PATH,
+        layer=LAYER
+    )
 
-        # ---------------------------------------------------------
-        # DEBUG-TEST
-        # ---------------------------------------------------------
-        #gdf_test = check_prepared_geodataframe(
-        #    gpkg_path=PREPARED_GPKG_PATH,
-        #    layer=LAYER
-        #)
+    # ---------------------------------------------------------
+    # 3. Gebäudeauswertung der aufbereiteten Daten
+    # ---------------------------------------------------------
+    for category_cols in PREPARED_VARIANTS:
+        run_gebaeudeauswertung(
+            gpkg_path=PREPARED_GPKG_PATH,
+            category_cols=category_cols,
+            output_dir=PREPARED_OUTPUT_DIR,
+            layer=LAYER,
+            demand_col=DEMAND_COL,
+            thresholds=THRESHOLDS,
+            recreate_mapping=RECREATE_MAPPING
+        )
 
-        #print("Debug_Test")
+    # ---------------------------------------------------------
+    # DEBUG-TEST
+    # ---------------------------------------------------------
+    #gdf_test = check_prepared_geodataframe(
+    #    gpkg_path=PREPARED_GPKG_PATH,
+    #    layer=LAYER
+    #)
+
+    #print("Debug_Test")
