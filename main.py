@@ -1,4 +1,5 @@
 from pathlib import Path
+import geopandas as gpd
 
 from gebaeudeauswertung import run_gebaeudeauswertung
 from gebaeudemodell_scripts.gebaeudedaten_aufbereitung import (
@@ -34,9 +35,14 @@ OUTPUT_DIR = Path(
 )
 
 PREPARED_GPKG_PATH = (
-    "outputs/gebaeudemodell/"
-    "prepared/"
-    "gebaeudemodell_prepared.gpkg"
+    OUTPUT_DIR
+    / "prepared"
+    / "gebaeudemodell_prepared.gpkg"
+)
+
+ENCODING_MAPPING_PATH = (
+    "gebaeudemodell_scripts/config/"
+    "nutzungart_encoding.json"
 )
 
 # =============================================================
@@ -89,20 +95,48 @@ if __name__ == "__main__":
                 recreate_mapping=RECREATE_MAPPING
             )
 
-        # ---------------------------------------------------------
-        # 2. Gebäudedaten aufbereiten
-        # ---------------------------------------------------------
+            # ---------------------------------------------------------
+            # 2. Gebäudedaten aufbereiten
+            # ---------------------------------------------------------
         prepare_gebaeudemodell(
             input_path=GPKG_PATH,
             output_path=PREPARED_GPKG_PATH,
+            encoding_mapping_path=ENCODING_MAPPING_PATH,
             layer=LAYER
         )
 
         # ---------------------------------------------------------
-        # 3. Encoding-Probleme in NutzungArt analysieren
+        # 3. Encoding des aufbereiteten Datensatzes prüfen
         # ---------------------------------------------------------
         analyse_nutzungart_encoding(
             path=PREPARED_GPKG_PATH,
             layer=LAYER,
             column="NutzungArt"
         )
+
+
+
+
+        gdf = gpd.read_file(
+            PREPARED_GPKG_PATH,
+            layer=LAYER
+        )
+
+        print(gdf.columns.tolist())
+
+        print(
+            "NutzungArt_und_funktion vorhanden:",
+            "NutzungArt_und_funktion" in gdf.columns
+        )
+
+        print(
+            gdf[
+                [
+                    "NutzungArt",
+                    "funktion",
+                    "NutzungArt_und_funktion"
+                ]
+            ].head(20)
+        )
+
+        print("Debug_Test")

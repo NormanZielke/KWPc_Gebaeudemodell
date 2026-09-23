@@ -1,62 +1,8 @@
 from pathlib import Path
-import geopandas as gpd
 import json
 
-
-def prepare_gebaeudemodell(
-        input_path,
-        output_path,
-        layer=None
-):
-    """
-    Liest das Gebäudemodell ein und schreibt eine Kopie,
-    die später für die Datenaufbereitung verwendet wird.
-
-    Die Rohdaten werden nicht verändert.
-    """
-
-    input_path = Path(input_path)
-    output_path = Path(output_path)
-
-    # ---------------------------------------------------------
-    # Daten einlesen
-    # ---------------------------------------------------------
-    if layer is None:
-        gdf = gpd.read_file(input_path)
-    else:
-        gdf = gpd.read_file(
-            input_path,
-            layer=layer
-        )
-
-    # ---------------------------------------------------------
-    # Aufbereitete Daten als eigene Kopie
-    # ---------------------------------------------------------
-    gdf_prepared = gdf.copy()
-
-    # ---------------------------------------------------------
-    # Zielordner erzeugen
-    # ---------------------------------------------------------
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    # ---------------------------------------------------------
-    # GeoPackage speichern
-    # ---------------------------------------------------------
-    gdf_prepared.to_file(
-        output_path,
-        layer=layer,
-        driver="GPKG"
-    )
-
-    print(
-        f"\nAufbereitetes Gebäudemodell gespeichert unter:\n"
-        f"{output_path}"
-    )
-
-    return output_path
+import geopandas as gpd
+import pandas as pd
 
 
 def analyse_nutzungart_encoding(
@@ -234,3 +180,249 @@ def fix_encoding(
     )
 
     return gdf
+
+
+def combine_exclusive_columns(
+        gdf,
+        primary_col,
+        fallback_col,
+        output_col
+):
+    """
+    Vereint zwei sich gegenseitig ausschließende Spalten
+    zu einer neuen Spalte.
+
+    Regeln:
+        1. Wert aus primary_col verwenden, falls vorhanden.
+        2. Sonst Wert aus fallback_col verwenden.
+        3. Sind beide Spalten befüllt, wird abgebrochen.
+        4. Sind beide leer, bleibt auch output_col leer.
+
+    Das ursprüngliche GeoDataFrame wird nicht verändert.
+    """
+
+    required_cols = [
+        primary_col,
+        fallback_col
+    ]
+
+    missing_cols = [
+        col for col in required_cols
+        if col not in gdf.columns
+    ]
+
+    if missing_cols:
+        raise KeyError(
+            f"Folgende Spalten fehlen im Gebäudemodell: "
+            f"{missing_cols}"
+        )
+
+    data = gdf.copy()
+
+    # ---------------------------------------------------------
+    # Leere Strings als fehlende Werte behandeln
+    # ---------------------------------------------------------
+    for col in required_cols:
+
+        data[col] = data[col].replace(
+            r"^\s*$",
+            pd.NA,
+            regex=True
+        )
+
+    # ---------------------------------------------------------
+    # Prüfen, ob beide Spalten gleichzeitig befüllt sind
+    # ---------------------------------------------------------
+    both_filled = (
+        data[primary_col].notna()
+        & data[fallback_col].notna()
+    )
+
+    if both_filled.any():
+
+        examples = (
+            data.loc[
+                both_filled,
+                [
+                    primary_col,
+                    fallback_col
+                ]
+            ]
+            .head(10)
+            .to_string(index=False)
+        )
+
+        raise ValueError(
+            f"\nDie Spalten '{primary_col}' und "
+            f"'{fallback_col}' sind bei "
+            f"{both_filled.sum()} Gebäuden gleichzeitig befüllt.\n"
+            "Eine eindeutige Zusammenführung ist daher nicht möglich.\n\n"
+            f"Beispiele:\n{examples}"
+        )
+
+    # ---------------------------------------------------------
+    # Neue kombinierte Spalte erzeugen
+    # ---------------------------------------------------------
+    data[output_col] = (
+        data[primary_col]
+        .fillna(data[fallback_col])
+    )
+
+    # ---------------------------------------------------------
+    # Plausibilitätsausgabe
+    # ---------------------------------------------------------
+    from_primary = data[primary_col].notna().sum()
+    from_fallback = data[fallback_col].notna().sum()
+    without_value = data[output_col].isna().sum()
+
+    print(
+        "\n"
+        "============================================================"
+    )
+
+    print(
+        f"Neue Spalte: {output_col}"
+    )
+
+    print(
+        "============================================================"
+    )
+
+    print(
+        f"Aus '{primary_col}': "
+        f"{from_primary}"
+    )
+
+    print(
+        f"Aus '{fallback_col}': "
+        f"{from_fallback}"
+    )
+
+    print(
+        f"Ohne Zuordnung: "
+        f"{without_value}"
+    )
+
+    return data
+
+
+def prepare_gebaeudemodell(
+        input_path,
+        output_path,
+        encoding_mapping_path,
+        layer=None,
+        encoding_column="NutzungArt",
+        primary_col="NutzungArt",
+        fallback_col="funktion",
+        combined_col="NutzungArt_und_funktion"
+):
+    """
+    Bereitet das Gebäudemodell auf und speichert das Ergebnis
+    als neues GeoPackage.
+
+    Verarbeitung:
+        1. Gebäudemodell einlesen
+        2. Encoding-Fehler korrigieren
+        3. Zwei exklusive Spalten zusammenführen
+        4. Aufbereitetes GeoPackage speichern
+
+    Die Rohdaten werden nicht verändert.
+    """
+
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+    encoding_mapping_path = Path(
+        encoding_mapping_path
+    )
+
+    # ---------------------------------------------------------
+    # 1. Daten einlesen
+    # ---------------------------------------------------------
+    if layer is None:
+
+        gdf = gpd.read_file(
+            input_path
+        )
+
+    else:
+
+        gdf = gpd.read_file(
+            input_path,
+            layer=layer
+        )
+
+    print(
+        "\n"
+        "============================================================"
+    )
+
+    print(
+        "Gebäudemodell aufbereiten"
+    )
+
+    print(
+        "============================================================"
+    )
+
+    print(
+        f"Input: {input_path}"
+    )
+
+    # ---------------------------------------------------------
+    # 2. Encoding korrigieren
+    # ---------------------------------------------------------
+    gdf = fix_encoding(
+        gdf=gdf,
+        mapping_path=encoding_mapping_path,
+        column=encoding_column
+    )
+
+    # ---------------------------------------------------------
+    # 3. NutzungArt und funktion zusammenführen
+    # ---------------------------------------------------------
+    gdf = combine_exclusive_columns(
+        gdf=gdf,
+        primary_col=primary_col,
+        fallback_col=fallback_col,
+        output_col=combined_col
+    )
+
+    # ---------------------------------------------------------
+    # 4. Zielordner erzeugen
+    # ---------------------------------------------------------
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    # ---------------------------------------------------------
+    # 5. GeoPackage speichern
+    # ---------------------------------------------------------
+    if layer is None:
+
+        gdf.to_file(
+            output_path,
+            driver="GPKG"
+        )
+
+    else:
+
+        gdf.to_file(
+            output_path,
+            layer=layer,
+            driver="GPKG"
+        )
+
+    print(
+        "\nAufbereitung abgeschlossen."
+    )
+
+    print(
+        f"Neue Spalte: {combined_col}"
+    )
+
+    print(
+        f"Output: {output_path}"
+    )
+
+    return output_path
