@@ -497,33 +497,18 @@ def prepare_gebaeudemodell(
     )
 
     # ---------------------------------------------------------
-    # 6. GeoPackage speichern
+    # 6. Vorhandenes GeoPackage vollständig entfernen
     # ---------------------------------------------------------
-    if layer is None:
+    if output_path.exists():
+        output_path.unlink()
 
-        gdf.to_file(
-            output_path,
-            driver="GPKG"
-        )
-
-    else:
-
-        gdf.to_file(
-            output_path,
-            layer=layer,
-            driver="GPKG"
-        )
-
-    print(
-        "\nAufbereitung abgeschlossen."
-    )
-
-    print(
-        f"Neue Spalte: {combined_col}"
-    )
-
-    print(
-        f"Output: {output_path}"
+    # ---------------------------------------------------------
+    # 7. Aufbereitetes GeoPackage speichern
+    # ---------------------------------------------------------
+    gdf.to_file(
+        output_path,
+        layer=layer,
+        driver="GPKG"
     )
 
     return output_path

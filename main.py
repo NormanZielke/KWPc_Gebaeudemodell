@@ -82,9 +82,8 @@ Remove selected categories in prepared input data in column "NutzungArt_und_funk
 """
 
 REMOVE_CATEGORIES = [
-    "Garage",
-    "Schuppen",
-    "Werkstatt",
+    "Fahrzeughalle", "Garage", "Gebäude zum Parken", "Lagerhalle, Lagerschuppen, Lagerhaus",
+    "Scheune", "Schuppen", "Sonstiges", "Stall", "Tiefgarage", "Umformer", "Werkstatt", "Überdachung",
 ]
 
 # =============================================================
@@ -176,9 +175,9 @@ if __name__ == "__main__":
     # ---------------------------------------------------------
     # DEBUG-TEST
     # ---------------------------------------------------------
-    gdf_test = check_prepared_geodataframe(
-        gpkg_path=PREPARED_GPKG_PATH,
-        layer=LAYER
-    )
+ #   gdf_test = check_prepared_geodataframe(
+ #       gpkg_path=PREPARED_GPKG_PATH,
+ #       layer=LAYER
+ #   )
 
-    print("Debug_Test")
+#    print("Debug_Test")
