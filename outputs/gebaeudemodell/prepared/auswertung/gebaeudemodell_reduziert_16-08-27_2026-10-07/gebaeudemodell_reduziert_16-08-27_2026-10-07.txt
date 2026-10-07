@@ -1,0 +1,25 @@
+Reduziertes Gebäudemodell
+==========================
+
+Ausgangsdatensatz:
+outputs/gebaeudemodell/prepared/gebaeudemodell_prepared.gpkg
+
+Filterspalte:
+NutzungArt_und_funktion
+
+Entfernte Kategorien:
+- Fahrzeughalle: 4 Gebäude
+- Garage: 731 Gebäude
+- Gebäude zum Parken: 29 Gebäude
+- Nach Quellenlage nicht zu spezifizieren: 24 Gebäude
+- Scheune: 23 Gebäude
+- Schuppen: 240 Gebäude
+- Sonstiges: 3 Gebäude
+- Stall: 32 Gebäude
+- Tiefgarage: 2 Gebäude
+- Umformer: 6 Gebäude
+- Werkstatt: 22 Gebäude
+- Überdachung: 13 Gebäude
+
+Insgesamt entfernte Gebäude: 1129
+Verbleibende Gebäude: 10700

@@ -82,7 +82,7 @@ Remove selected categories in prepared input data in column "NutzungArt_und_funk
 """
 
 REMOVE_CATEGORIES = [
-    "Fahrzeughalle", "Garage", "Gebäude zum Parken", "Lagerhalle, Lagerschuppen, Lagerhaus",
+    "Fahrzeughalle", "Garage", "Gebäude zum Parken", "Nach Quellenlage nicht zu spezifizieren",
     "Scheune", "Schuppen", "Sonstiges", "Stall", "Tiefgarage", "Umformer", "Werkstatt", "Überdachung",
 ]
 
