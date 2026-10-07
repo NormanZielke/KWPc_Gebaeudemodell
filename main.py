@@ -60,16 +60,26 @@ ENCODING_MAPPING_PATH = (
 # AUSWERTUNGSVARIANTEN
 # =============================================================
 
+"""
+Evaluation for selected columns of raw input data
+"""
 CATEGORY_VARIANTS = [
     ["GebTyp"],
     ["GebTyp", "funktion"],
     ["NutzungArt", "funktion"],
 ]
 
+"""
+Evaluation for selected columns of prepared input data
+"""
+
 PREPARED_VARIANTS = [
     ["NutzungArt_und_funktion"],
 ]
 
+"""
+Remove selected categories in prepared input data in column "NutzungArt_und_funktion"
+"""
 
 REMOVE_CATEGORIES = [
     "Garage",
